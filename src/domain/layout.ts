@@ -1,7 +1,6 @@
 import {
   CANVAS_PADDING_X,
   CANVAS_PADDING_Y,
-  FAMILY_TOGGLE_OFFSET_Y,
   GENERATION_VERTICAL_GAP,
   PERSON_HORIZONTAL_GAP,
   PERSON_NODE_WIDTH
@@ -11,8 +10,9 @@ import {
   FamilyTreeDocument,
   FocusedGraphContext,
   LayoutEdge,
-  LayoutFamilyControl,
   LayoutPersonNode,
+  LayoutPersonToggle,
+  LayoutSpouseShortcut,
   TreeLayout
 } from '../types';
 import { parseBirthSortValue } from '../services/parser';
@@ -26,16 +26,23 @@ interface ChildOrder {
 export async function buildTreeLayout(
   document: FamilyTreeDocument,
   collapsedFamilyIds: ReadonlySet<string>,
-  focusPersonId: string | null = null
+  focusPersonId: string | null = null,
+  collapsedPersonIds: ReadonlySet<string> = new Set()
 ): Promise<TreeLayout> {
-  const context = buildFocusedGraphContext(document, focusPersonId, collapsedFamilyIds);
+  const context = buildFocusedGraphContext(document, focusPersonId, collapsedFamilyIds, collapsedPersonIds);
   const generations = calculateFocusedGenerations(document, context);
   const childOrder = buildChildOrder(document);
-  const people = placePeople(document, context, generations, childOrder);
-  const families = placeFamilyControls(document, context, people, collapsedFamilyIds);
-  const edges = buildLayoutEdges(document, context, collapsedFamilyIds);
+  const people = placePeople({
+    document,
+    context,
+    generations,
+    childOrder,
+    collapsedFamilyIds,
+    collapsedPersonIds
+  });
+  const edges = buildLayoutEdges(document, context, collapsedFamilyIds, collapsedPersonIds);
 
-  return { people, families, edges };
+  return { people, families: [], edges };
 }
 
 export function sortChildrenByAge(document: FamilyTreeDocument, family: FamilyRecord): readonly string[] {
@@ -119,12 +126,23 @@ function buildChildOrder(document: FamilyTreeDocument): ReadonlyMap<string, Chil
   return childOrder;
 }
 
-function placePeople(
-  document: FamilyTreeDocument,
-  context: FocusedGraphContext,
-  generations: ReadonlyMap<string, number>,
-  childOrder: ReadonlyMap<string, ChildOrder>
-): readonly LayoutPersonNode[] {
+interface PlacePeopleOptions {
+  readonly document: FamilyTreeDocument;
+  readonly context: FocusedGraphContext;
+  readonly generations: ReadonlyMap<string, number>;
+  readonly childOrder: ReadonlyMap<string, ChildOrder>;
+  readonly collapsedFamilyIds: ReadonlySet<string>;
+  readonly collapsedPersonIds: ReadonlySet<string>;
+}
+
+function placePeople({
+  document,
+  context,
+  generations,
+  childOrder,
+  collapsedFamilyIds,
+  collapsedPersonIds
+}: PlacePeopleOptions): readonly LayoutPersonNode[] {
   const personOrder = buildPersonOrder(document);
   const rows = new Map<number, string[]>();
   context.mainPersonIds.forEach((personId) => {
@@ -149,15 +167,68 @@ function placePeople(
         return null;
       }
 
+      const childLineToggle = buildChildLineToggle(document, context, person.id, collapsedPersonIds);
       return {
         id: person.id,
         person,
         generation,
         x: CANVAS_PADDING_X + index * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP),
         y: CANVAS_PADDING_Y + generation * GENERATION_VERTICAL_GAP,
-        spouseIds: context.spouseShortcutsByPersonId.get(person.id) ?? []
+        spouseShortcuts: buildLayoutSpouseShortcuts(document, context, person.id, collapsedFamilyIds),
+        ...(childLineToggle ? { childLineToggle } : {})
       };
     }).filter((node): node is LayoutPersonNode => node !== null);
+  });
+}
+
+function buildLayoutSpouseShortcuts(
+  document: FamilyTreeDocument,
+  context: FocusedGraphContext,
+  personId: string,
+  collapsedFamilyIds: ReadonlySet<string>
+): readonly LayoutSpouseShortcut[] {
+  return (context.spouseShortcutsByPersonId.get(personId) ?? []).flatMap((spouseId) => {
+    const family = findSpouseFamily(document, personId, spouseId);
+    if (!family) {
+      return [];
+    }
+
+    return [{
+      personId: spouseId,
+      family,
+      isChecked: !collapsedFamilyIds.has(family.id)
+    }];
+  });
+}
+
+function findSpouseFamily(
+  document: FamilyTreeDocument,
+  personId: string,
+  spouseId: string
+): FamilyRecord | undefined {
+  return Array.from(document.families.values()).find((family) => {
+    return family.parents.length === 2 && family.parents.includes(personId) && family.parents.includes(spouseId);
+  });
+}
+
+function buildChildLineToggle(
+  document: FamilyTreeDocument,
+  context: FocusedGraphContext,
+  personId: string,
+  collapsedPersonIds: ReadonlySet<string>
+): LayoutPersonToggle | undefined {
+  return hasVisibleChildLine(document, context, personId)
+    ? { personId, isCollapsed: collapsedPersonIds.has(personId) }
+    : undefined;
+}
+
+function hasVisibleChildLine(
+  document: FamilyTreeDocument,
+  context: FocusedGraphContext,
+  personId: string
+): boolean {
+  return Array.from(document.families.values()).some((family) => {
+    return context.visibleFamilyIds.has(family.id) && family.children.length > 0 && family.parents.includes(personId);
   });
 }
 
@@ -187,41 +258,11 @@ function comparePeople(
   return (personOrder.get(firstId) ?? 0) - (personOrder.get(secondId) ?? 0);
 }
 
-function placeFamilyControls(
-  document: FamilyTreeDocument,
-  context: FocusedGraphContext,
-  people: readonly LayoutPersonNode[],
-  collapsedFamilyIds: ReadonlySet<string>
-): readonly LayoutFamilyControl[] {
-  const peopleById = new Map(people.map((node) => [node.id, node]));
-  return Array.from(document.families.values()).flatMap((family) => {
-    if (!context.visibleFamilyIds.has(family.id) || family.children.length === 0) {
-      return [];
-    }
-
-    const visibleParents = family.parents
-      .map((parentId) => peopleById.get(parentId))
-      .filter((node): node is LayoutPersonNode => Boolean(node));
-    if (visibleParents.length === 0) {
-      return [];
-    }
-
-    const x = average(visibleParents.map((parent) => parent.x)) + PERSON_NODE_WIDTH / 2;
-    const y = Math.max(...visibleParents.map((parent) => parent.y)) + FAMILY_TOGGLE_OFFSET_Y;
-    return [{
-      id: `toggle:${family.id}`,
-      family,
-      x,
-      y,
-      isCollapsed: collapsedFamilyIds.has(family.id)
-    }];
-  });
-}
-
 function buildLayoutEdges(
   document: FamilyTreeDocument,
   context: FocusedGraphContext,
-  collapsedFamilyIds: ReadonlySet<string>
+  collapsedFamilyIds: ReadonlySet<string>,
+  collapsedPersonIds: ReadonlySet<string>
 ): readonly LayoutEdge[] {
   return Array.from(document.families.values()).flatMap((family) => {
     if (!context.visibleFamilyIds.has(family.id)) {
@@ -229,9 +270,19 @@ function buildLayoutEdges(
     }
 
     const marriageEdges = buildMarriageEdges(family, context);
-    const childEdges = collapsedFamilyIds.has(family.id) ? [] : buildChildEdges(document, family, context);
+    const childEdges = isFamilyChildLineVisible(family, collapsedFamilyIds, collapsedPersonIds)
+      ? buildChildEdges(document, family, context)
+      : [];
     return [...marriageEdges, ...childEdges];
   });
+}
+
+function isFamilyChildLineVisible(
+  family: FamilyRecord,
+  collapsedFamilyIds: ReadonlySet<string>,
+  collapsedPersonIds: ReadonlySet<string>
+): boolean {
+  return !collapsedFamilyIds.has(family.id) && !family.parents.some((personId) => collapsedPersonIds.has(personId));
 }
 
 function buildMarriageEdges(family: FamilyRecord, context: FocusedGraphContext): readonly LayoutEdge[] {
@@ -280,8 +331,4 @@ function compareOptionalNumber(firstValue: number | null | undefined, secondValu
 
 function buildPersonOrder(document: FamilyTreeDocument): ReadonlyMap<string, number> {
   return new Map(Array.from(document.people.keys()).map((personId, index) => [personId, index]));
-}
-
-function average(values: readonly number[]): number {
-  return values.reduce((total, value) => total + value, 0) / values.length;
 }

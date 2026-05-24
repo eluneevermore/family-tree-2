@@ -74,4 +74,84 @@ p->b,a
     expect((older?.x ?? 0)).toBeLessThan(younger?.x ?? 0);
     expect(Math.abs((younger?.x ?? 0) - (older?.x ?? 0))).toBeGreaterThanOrEqual(PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
   });
+
+  it('places a node descendant toggle and checked spouse line controls by default', async () => {
+    const document = parseFamilyTreeText(`
+a:Alpha,g=u
+s1:Spouse One,g=u
+s2:Spouse Two,g=u
+c1:Child One,g=u
+c2:Child Two,g=u
+c3:Child Three,g=u
+c4:Child Four,g=u
+a+s1->c1,c2
+a+s2->c3,c4
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a');
+    const alpha = layout.people.find((person) => person.id === 'a');
+    const shortcutTargets = alpha?.spouseShortcuts.map((shortcut) => {
+      return `${shortcut.personId}:${shortcut.family.id}:${shortcut.isChecked ? 'on' : 'off'}`;
+    }) ?? [];
+    const floatingFamilyIds = layout.families.map((family) => family.family.id);
+
+    expect(alpha?.childLineToggle?.isCollapsed).toBe(false);
+    expect(shortcutTargets).toEqual(['s1:couple:a+s1:on', 's2:couple:a+s2:on']);
+    expect(floatingFamilyIds).not.toContain('couple:a+s1');
+    expect(floatingFamilyIds).not.toContain('couple:a+s2');
+  });
+
+  it('places a no-spouse descendant toggle inside the parent node', async () => {
+    const document = parseFamilyTreeText(`
+p:Parent,g=u
+c:Child,g=u
+p->c
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'p');
+    const parent = layout.people.find((person) => person.id === 'p');
+
+    expect(parent?.childLineToggle).toEqual({ personId: 'p', isCollapsed: false });
+    expect(layout.families).toHaveLength(0);
+  });
+
+  it('collapses all child lines from one person node', async () => {
+    const document = parseFamilyTreeText(`
+a:Alpha,g=u
+s1:Spouse One,g=u
+s2:Spouse Two,g=u
+c1:Child One,g=u
+c2:Child Two,g=u
+c3:Child Three,g=u
+c4:Child Four,g=u
+a+s1->c1,c2
+a+s2->c3,c4
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a', new Set(['a']));
+    const visiblePeople = layout.people.map((person) => person.id);
+
+    expect(visiblePeople).not.toContain('c1');
+    expect(visiblePeople).not.toContain('c2');
+    expect(visiblePeople).not.toContain('c3');
+    expect(visiblePeople).not.toContain('c4');
+  });
+
+  it('collapses descendants for one spouse family without hiding another spouse family', async () => {
+    const document = parseFamilyTreeText(`
+a:Alpha,g=u
+s1:Spouse One,g=u
+s2:Spouse Two,g=u
+c1:Child One,g=u
+c2:Child Two,g=u
+c3:Child Three,g=u
+c4:Child Four,g=u
+a+s1->c1,c2
+a+s2->c3,c4
+`);
+    const layout = await buildTreeLayout(document, new Set(['couple:a+s1']), 'a');
+    const visiblePeople = layout.people.map((person) => person.id);
+
+    expect(visiblePeople).not.toContain('c1');
+    expect(visiblePeople).not.toContain('c2');
+    expect(visiblePeople).toContain('c3');
+    expect(visiblePeople).toContain('c4');
+  });
 });

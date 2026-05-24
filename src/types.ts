@@ -80,7 +80,19 @@ export interface LayoutPersonNode {
   readonly generation: number;
   readonly x: number;
   readonly y: number;
-  readonly spouseIds: readonly string[];
+  readonly spouseShortcuts: readonly LayoutSpouseShortcut[];
+  readonly childLineToggle?: LayoutPersonToggle;
+}
+
+export interface LayoutSpouseShortcut {
+  readonly personId: string;
+  readonly family: FamilyRecord;
+  readonly isChecked: boolean;
+}
+
+export interface LayoutPersonToggle {
+  readonly personId: string;
+  readonly isCollapsed: boolean;
 }
 
 export interface LayoutFamilyControl {

@@ -26,7 +26,6 @@ export const SPOUSE_HORIZONTAL_GAP = 32;
 export const GENERATION_VERTICAL_GAP = 190;
 export const CANVAS_PADDING_X = 96;
 export const CANVAS_PADDING_Y = 72;
-export const FAMILY_TOGGLE_OFFSET_Y = 92;
 
 export const GENDER_COLORS = {
   male: '#2563eb',

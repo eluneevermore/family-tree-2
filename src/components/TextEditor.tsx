@@ -44,7 +44,7 @@ export function TextEditor({ text, document, diagnostics, locale, onTextChange }
       return;
     }
 
-    if ((event.key === 'Enter' || event.key === 'Tab') && suggestions.length > 0) {
+    if (event.key === 'Tab' && suggestions.length > 0) {
       event.preventDefault();
       insertSuggestion(suggestions[0].id);
     }

@@ -1,6 +1,6 @@
-import { Baby, Plus, UserPlus } from 'lucide-react';
+import { Baby, ChevronDown, ChevronRight, Heart, Plus, UserPlus } from 'lucide-react';
 import { Handle, NodeProps, Position } from '@xyflow/react';
-import { MouseEvent, ReactElement } from 'react';
+import { ChangeEvent, MouseEvent, ReactElement } from 'react';
 import { GENDER_COLORS } from '../constants';
 import { LocaleStrings } from '../locales';
 import { PersonRecord } from '../types';
@@ -8,11 +8,21 @@ import { PersonRecord } from '../types';
 export interface SpouseSummary {
   readonly id: string;
   readonly name: string;
+  readonly familyId: string;
+  readonly parentIds: readonly string[];
+  readonly hasChildren: boolean;
+  readonly isChecked: boolean;
+}
+
+export interface PersonToggleSummary {
+  readonly personId: string;
+  readonly isCollapsed: boolean;
 }
 
 export interface PersonNodeData extends Record<string, unknown> {
   readonly person: PersonRecord;
   readonly spouses: readonly SpouseSummary[];
+  readonly personToggle?: PersonToggleSummary;
   readonly isSearchMatch: boolean;
   readonly isSelected: boolean;
   readonly locale: LocaleStrings;
@@ -21,6 +31,8 @@ export interface PersonNodeData extends Record<string, unknown> {
   readonly onFocusPerson: (personId: string) => void;
   readonly onHoverPerson: (personId: string | null) => void;
   readonly onSelectPerson: (personId: string) => void;
+  readonly onToggleFamily: (familyId: string) => void;
+  readonly onTogglePerson: (personId: string) => void;
 }
 
 export function PersonNode({ data }: NodeProps): ReactElement {
@@ -61,21 +73,47 @@ export function PersonNode({ data }: NodeProps): ReactElement {
       {nodeData.spouses.length > 0 ? (
         <div className="spouse-list" aria-label={nodeData.locale.spousesOf(nodeData.person.name)}>
           {nodeData.spouses.map((spouse) => (
-            <button
-              aria-label={`${nodeData.locale.focus} ${spouse.name}`}
-              className="spouse-chip"
-              data-testid={`spouse-shortcut-${spouse.id}`}
-              key={spouse.id}
-              onClick={(event) => {
-                stopClick(event);
-                nodeData.onFocusPerson(spouse.id);
-              }}
-              type="button"
+            <div
+              className="spouse-item nodrag nopan"
+              data-testid={`spouse-item-${spouse.familyId}`}
+              key={`${spouse.familyId}:${spouse.id}`}
             >
-              <span>{nodeData.locale.focus}</span>
-              {spouse.name}
-            </button>
+              <button
+                aria-label={`${nodeData.locale.focus} ${spouse.name}`}
+                className="spouse-chip"
+                data-testid={`spouse-shortcut-${spouse.id}`}
+                onClick={(event) => {
+                  stopClick(event);
+                  nodeData.onFocusPerson(spouse.id);
+                }}
+                type="button"
+              >
+                <Heart aria-hidden="true" className="spouse-chip-icon" size={12} />
+                {spouse.name}
+              </button>
+              {spouse.hasChildren ? (
+                <SpouseFamilyCheckbox
+                  familyId={spouse.familyId}
+                  isChecked={spouse.isChecked}
+                  locale={nodeData.locale}
+                  onToggleFamily={nodeData.onToggleFamily}
+                  spouseName={spouse.name}
+                />
+              ) : null}
+            </div>
           ))}
+        </div>
+      ) : null}
+
+      {nodeData.personToggle ? (
+        <div className="person-family-toggles">
+          <PersonToggleControl
+            isCollapsed={nodeData.personToggle.isCollapsed}
+            locale={nodeData.locale}
+            onTogglePerson={nodeData.onTogglePerson}
+            personId={nodeData.personToggle.personId}
+            personName={nodeData.person.name}
+          />
         </div>
       ) : null}
 
@@ -109,5 +147,80 @@ export function PersonNode({ data }: NodeProps): ReactElement {
         </span>
       </div>
     </div>
+  );
+}
+
+interface SpouseFamilyCheckboxProps {
+  readonly familyId: string;
+  readonly spouseName: string;
+  readonly isChecked: boolean;
+  readonly locale: LocaleStrings;
+  readonly onToggleFamily: (familyId: string) => void;
+}
+
+function SpouseFamilyCheckbox({
+  familyId,
+  spouseName,
+  isChecked,
+  locale,
+  onToggleFamily
+}: SpouseFamilyCheckboxProps): ReactElement {
+  const label = locale.showDescendantsWith(spouseName);
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>): void {
+    event.stopPropagation();
+    onToggleFamily(familyId);
+  }
+
+  return (
+    <input
+      aria-label={label}
+      checked={isChecked}
+      className="spouse-family-checkbox nodrag nopan"
+      data-testid={`spouse-family-checkbox-${familyId}`}
+      onChange={handleChange}
+      onClick={(event) => event.stopPropagation()}
+      title={label}
+      type="checkbox"
+    />
+  );
+}
+
+interface PersonToggleControlProps {
+  readonly personId: string;
+  readonly personName: string;
+  readonly isCollapsed: boolean;
+  readonly locale: LocaleStrings;
+  readonly onTogglePerson: (personId: string) => void;
+}
+
+function PersonToggleControl({
+  personId,
+  personName,
+  isCollapsed,
+  locale,
+  onTogglePerson
+}: PersonToggleControlProps): ReactElement {
+  const label = isCollapsed ? locale.showDescendants : locale.hideDescendants;
+  const className = isCollapsed
+    ? 'inline-family-toggle inline-family-toggle-collapsed nodrag nopan'
+    : 'inline-family-toggle nodrag nopan';
+
+  function handleClick(event: MouseEvent<HTMLButtonElement>): void {
+    event.stopPropagation();
+    onTogglePerson(personId);
+  }
+
+  return (
+    <button
+      aria-label={`${label} for ${personName}`}
+      className={className}
+      data-testid={`person-toggle-${personId}`}
+      onClick={handleClick}
+      title={label}
+      type="button"
+    >
+      {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+    </button>
   );
 }

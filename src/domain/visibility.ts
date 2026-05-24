@@ -2,12 +2,20 @@ import { FamilyRecord, FamilyTreeDocument, FocusedGraphContext } from '../types'
 
 export function collectHiddenPersonIds(
   document: FamilyTreeDocument,
-  collapsedFamilyIds: ReadonlySet<string>
+  collapsedFamilyIds: ReadonlySet<string>,
+  collapsedPersonIds: ReadonlySet<string> = new Set()
 ): ReadonlySet<string> {
   const hiddenPersonIds = new Set<string>();
   collapsedFamilyIds.forEach((familyId) => {
     const family = document.families.get(familyId);
     family?.children.forEach((childId) => hideDescendants(document, childId, hiddenPersonIds));
+  });
+  collapsedPersonIds.forEach((personId) => {
+    document.families.forEach((family) => {
+      if (family.parents.includes(personId)) {
+        family.children.forEach((childId) => hideDescendants(document, childId, hiddenPersonIds));
+      }
+    });
   });
   return hiddenPersonIds;
 }
@@ -15,7 +23,8 @@ export function collectHiddenPersonIds(
 export function buildFocusedGraphContext(
   document: FamilyTreeDocument,
   focusPersonId: string | null,
-  collapsedFamilyIds: ReadonlySet<string>
+  collapsedFamilyIds: ReadonlySet<string>,
+  collapsedPersonIds: ReadonlySet<string> = new Set()
 ): FocusedGraphContext {
   const resolvedFocusPersonId = resolveFocusPersonId(document, focusPersonId);
   if (!resolvedFocusPersonId) {
@@ -28,7 +37,12 @@ export function buildFocusedGraphContext(
     };
   }
 
-  const hiddenPersonIds = collectFocusedHiddenPersonIds(document, resolvedFocusPersonId, collapsedFamilyIds);
+  const hiddenPersonIds = collectFocusedHiddenPersonIds(
+    document,
+    resolvedFocusPersonId,
+    collapsedFamilyIds,
+    collapsedPersonIds
+  );
   const mainPersonIds = collectFocusedMainPersonIds(document, resolvedFocusPersonId, hiddenPersonIds);
   const visibleFamilyIds = collectVisibleFamilyIds(document, mainPersonIds);
   const spouseShortcutsByPersonId = collectSpouseShortcuts(document, mainPersonIds, hiddenPersonIds);
@@ -45,9 +59,10 @@ export function buildFocusedGraphContext(
 export function collectFocusedHiddenPersonIds(
   document: FamilyTreeDocument,
   _focusPersonId: string | null,
-  collapsedFamilyIds: ReadonlySet<string>
+  collapsedFamilyIds: ReadonlySet<string>,
+  collapsedPersonIds: ReadonlySet<string> = new Set()
 ): ReadonlySet<string> {
-  return collectHiddenPersonIds(document, collapsedFamilyIds);
+  return collectHiddenPersonIds(document, collapsedFamilyIds, collapsedPersonIds);
 }
 
 export function findInitialFocusPersonId(document: FamilyTreeDocument): string | null {

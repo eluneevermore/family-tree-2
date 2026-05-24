@@ -1,3 +1,4 @@
+import { ReactElement, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -48,4 +49,39 @@ describe('TextEditor', () => {
 
     expect(onTextChange).toHaveBeenCalledWith('dad+mom');
   });
+
+  it('keeps Enter for new lines and uses Tab to accept suggestions', async () => {
+    const user = userEvent.setup();
+    const document = parseFamilyTreeText('dad:Robert,g=m\nmom:Linda,g=f\n');
+    render(<ControlledTextEditor document={document} initialText="dad+mo" />);
+
+    const textarea = screen.getByLabelText('Family tree source');
+    await user.click(textarea);
+    await user.keyboard('{End}{Enter}');
+
+    expect(textarea).toHaveValue('dad+mo\n');
+
+    await user.type(textarea, 'mo');
+    await user.keyboard('{Tab}');
+
+    expect(textarea).toHaveValue('dad+mo\nmom');
+  });
 });
+
+interface ControlledTextEditorProps {
+  readonly document: ReturnType<typeof parseFamilyTreeText>;
+  readonly initialText: string;
+}
+
+function ControlledTextEditor({ document, initialText }: ControlledTextEditorProps): ReactElement {
+  const [text, setText] = useState(initialText);
+  return (
+    <TextEditor
+      diagnostics={[]}
+      document={document}
+      locale={locales.en}
+      text={text}
+      onTextChange={setText}
+    />
+  );
+}

@@ -38,6 +38,7 @@ export interface LocaleStrings {
   readonly focus: string;
   readonly showDescendants: string;
   readonly hideDescendants: string;
+  readonly showDescendantsWith: (name: string) => string;
   readonly spousesOf: (name: string) => string;
   readonly formatDiagnostic: (diagnostic: ParseDiagnostic) => string;
 }
@@ -81,6 +82,7 @@ export const locales: Record<Language, LocaleStrings> = {
     focus: 'Focus',
     showDescendants: 'Show descendants',
     hideDescendants: 'Hide descendants',
+    showDescendantsWith: (name) => `Show descendants with ${name}`,
     spousesOf: (name) => `Spouses of ${name}`,
     formatDiagnostic: (diagnostic) => diagnostic.message
   },
@@ -122,6 +124,7 @@ export const locales: Record<Language, LocaleStrings> = {
     focus: 'Chuyển nhánh',
     showDescendants: 'Hiện hậu duệ',
     hideDescendants: 'Ẩn hậu duệ',
+    showDescendantsWith: (name) => `Hiện hậu duệ với ${name}`,
     spousesOf: (name) => `Vợ/chồng của ${name}`,
     formatDiagnostic: formatVietnameseDiagnostic
   }

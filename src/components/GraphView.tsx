@@ -9,7 +9,6 @@ import {
   Node,
   ReactFlow,
   ReactFlowProvider,
-  ViewportPortal,
   useNodesState,
   useReactFlow
 } from '@xyflow/react';
@@ -17,10 +16,16 @@ import { describeKinship } from '../domain/kinship';
 import { buildTreeLayout } from '../domain/layout';
 import { findMatchingPersonIds } from '../domain/visibility';
 import { PERSON_NODE_HEIGHT, PERSON_NODE_WIDTH } from '../constants';
-import { FamilyTreeDocument, Language, PersonRecord, TreeLayout } from '../types';
+import {
+  FamilyTreeDocument,
+  Language,
+  LayoutPersonToggle,
+  LayoutSpouseShortcut,
+  PersonRecord,
+  TreeLayout
+} from '../types';
 import { LocaleStrings } from '../locales';
-import { FamilyToggleButton } from './FamilyToggleNode';
-import { PersonNode, PersonNodeData, SpouseSummary } from './PersonNode';
+import { PersonToggleSummary, PersonNode, PersonNodeData, SpouseSummary } from './PersonNode';
 
 interface GraphViewProps {
   readonly document: FamilyTreeDocument;
@@ -29,8 +34,10 @@ interface GraphViewProps {
   readonly locale: LocaleStrings;
   readonly searchQuery: string;
   readonly collapsedFamilyIds: ReadonlySet<string>;
+  readonly collapsedPersonIds: ReadonlySet<string>;
   readonly onFocusPerson: (personId: string) => void;
   readonly onToggleFamily: (familyId: string) => void;
+  readonly onTogglePerson: (personId: string) => void;
   readonly onAddChild: (person: PersonRecord) => void;
   readonly onAddSpouse: (person: PersonRecord) => void;
 }
@@ -54,8 +61,10 @@ function GraphCanvas({
   locale,
   searchQuery,
   collapsedFamilyIds,
+  collapsedPersonIds,
   onFocusPerson,
   onToggleFamily,
+  onTogglePerson,
   onAddChild,
   onAddSpouse
 }: GraphViewProps): ReactElement {
@@ -71,7 +80,7 @@ function GraphCanvas({
 
   useEffect(() => {
     let isCurrent = true;
-    buildTreeLayout(document, collapsedFamilyIds, focusPersonId).then((nextLayout) => {
+    buildTreeLayout(document, collapsedFamilyIds, focusPersonId, collapsedPersonIds).then((nextLayout) => {
       if (isCurrent) {
         setLayout(nextLayout);
       }
@@ -80,7 +89,7 @@ function GraphCanvas({
     return () => {
       isCurrent = false;
     };
-  }, [document, collapsedFamilyIds, focusPersonId]);
+  }, [document, collapsedFamilyIds, collapsedPersonIds, focusPersonId]);
 
   const focusPerson = useCallback((personId: string): void => {
     const node = reactFlow.getNode(personId);
@@ -105,7 +114,9 @@ function GraphCanvas({
       onAddSpouse,
       onFocusPerson,
       onHoverPerson: setHoveredPersonId,
-      onSelectPerson: setSelectedPersonId
+      onSelectPerson: setSelectedPersonId,
+      onToggleFamily,
+      onTogglePerson
     }));
   }, [
     document,
@@ -115,6 +126,8 @@ function GraphCanvas({
     onAddChild,
     onAddSpouse,
     onFocusPerson,
+    onToggleFamily,
+    onTogglePerson,
     selectedPersonId,
     setNodes
   ]);
@@ -146,24 +159,6 @@ function GraphCanvas({
         maxZoom={2}
       >
         <Background color="#dbe3ef" gap={22} variant={BackgroundVariant.Dots} />
-        <ViewportPortal>
-          {layout.families.map((familyControl) => (
-            <div
-              className="family-toggle-portal"
-              key={familyControl.id}
-              style={{ transform: `translate(${familyControl.x - 15}px, ${familyControl.y - 15}px)` }}
-            >
-              <FamilyToggleButton
-                data={{
-                  family: familyControl.family,
-                  isCollapsed: familyControl.isCollapsed,
-                  locale,
-                  onToggle: onToggleFamily
-                }}
-              />
-            </div>
-          ))}
-        </ViewportPortal>
         <MiniMap pannable zoomable />
       </ReactFlow>
       {kinship ? (
@@ -208,6 +203,8 @@ interface BuildFlowNodesOptions {
   readonly onFocusPerson: (personId: string) => void;
   readonly onHoverPerson: (personId: string | null) => void;
   readonly onSelectPerson: (personId: string) => void;
+  readonly onToggleFamily: (familyId: string) => void;
+  readonly onTogglePerson: (personId: string) => void;
 }
 
 function buildFlowNodes({
@@ -220,7 +217,9 @@ function buildFlowNodes({
   onAddSpouse,
   onFocusPerson,
   onHoverPerson,
-  onSelectPerson
+  onSelectPerson,
+  onToggleFamily,
+  onTogglePerson
 }: BuildFlowNodesOptions): Node[] {
   const personNodes = layout.people.map<Node<PersonNodeData>>((layoutNode) => ({
     id: layoutNode.id,
@@ -229,7 +228,8 @@ function buildFlowNodes({
     zIndex: 5,
     data: {
       person: layoutNode.person,
-      spouses: buildSpouseSummaries(document, layoutNode.spouseIds),
+      spouses: buildSpouseSummaries(document, layoutNode.spouseShortcuts),
+      personToggle: buildPersonToggleSummary(layoutNode.childLineToggle),
       isSearchMatch: matchingPersonIds.has(layoutNode.id),
       isSelected: selectedPersonId === layoutNode.id,
       locale,
@@ -237,18 +237,39 @@ function buildFlowNodes({
       onAddSpouse,
       onFocusPerson,
       onHoverPerson,
-      onSelectPerson
+      onSelectPerson,
+      onToggleFamily,
+      onTogglePerson
     }
   }));
 
   return personNodes;
 }
 
-function buildSpouseSummaries(document: FamilyTreeDocument, spouseIds: readonly string[]): readonly SpouseSummary[] {
-  return spouseIds.flatMap((spouseId) => {
-    const spouse = document.people.get(spouseId);
-    return spouse ? [{ id: spouse.id, name: spouse.name }] : [];
+function buildSpouseSummaries(
+  document: FamilyTreeDocument,
+  spouseShortcuts: readonly LayoutSpouseShortcut[]
+): readonly SpouseSummary[] {
+  return spouseShortcuts.flatMap((shortcut) => {
+    const spouse = document.people.get(shortcut.personId);
+    return spouse ? [{
+      id: spouse.id,
+      name: spouse.name,
+      familyId: shortcut.family.id,
+      parentIds: shortcut.family.parents,
+      hasChildren: shortcut.family.children.length > 0,
+      isChecked: shortcut.isChecked
+    }] : [];
   });
+}
+
+function buildPersonToggleSummary(personToggle: LayoutPersonToggle | undefined): PersonToggleSummary | undefined {
+  return personToggle
+    ? {
+        personId: personToggle.personId,
+        isCollapsed: personToggle.isCollapsed
+      }
+    : undefined;
 }
 
 function buildFlowEdges(layout: TreeLayout): Edge[] {

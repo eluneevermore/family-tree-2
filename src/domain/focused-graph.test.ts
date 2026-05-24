@@ -45,7 +45,7 @@ describe('focused graph context', () => {
     expect(visibleIds).toContain('mom');
     expect(visibleIds).toContain('mgf');
     expect(visibleIds).not.toContain('dad');
-    expect(layout.people.find((node) => node.id === 'mom')?.spouseIds).toEqual(['dad']);
+    expect(layout.people.find((node) => node.id === 'mom')?.spouseShortcuts.map((shortcut) => shortcut.personId)).toEqual(['dad']);
   });
 
   it('hides collapsed descendants in the focused graph only for that family line', () => {

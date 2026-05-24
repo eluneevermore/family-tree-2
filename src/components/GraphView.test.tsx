@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { locales } from '../locales';
@@ -20,6 +20,7 @@ describe('GraphView', () => {
     render(
       <GraphView
         collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
         document={document}
         focusPersonId="me"
         language="en"
@@ -28,6 +29,7 @@ describe('GraphView', () => {
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
         onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
         searchQuery=""
       />
     );
@@ -39,14 +41,16 @@ describe('GraphView', () => {
     expect(screen.getByText('son')).toBeInTheDocument();
   });
 
-  it('fires descendant toggle and spouse shortcut actions', async () => {
+  it('fires node toggle, spouse checkbox, and spouse shortcut actions', async () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const onToggleFamily = vi.fn();
+    const onTogglePerson = vi.fn();
     const onFocusPerson = vi.fn();
     render(
       <GraphView
         collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
         document={document}
         focusPersonId="me"
         language="en"
@@ -55,13 +59,17 @@ describe('GraphView', () => {
         onAddSpouse={vi.fn()}
         onFocusPerson={onFocusPerson}
         onToggleFamily={onToggleFamily}
+        onTogglePerson={onTogglePerson}
         searchQuery=""
       />
     );
 
-    fireEvent.click(await screen.findByTestId('family-toggle-couple:dad+mom'));
+    const spouseItem = await screen.findByTestId('spouse-item-couple:dad+mom');
+    fireEvent.click(await screen.findByTestId('person-toggle-dad'));
+    fireEvent.click(within(spouseItem).getByTestId('spouse-family-checkbox-couple:dad+mom'));
     fireEvent.click(screen.getByTestId('spouse-shortcut-mom'));
 
+    expect(onTogglePerson).toHaveBeenCalledWith('dad');
     expect(onToggleFamily).toHaveBeenCalledWith('couple:dad+mom');
     expect(onFocusPerson).toHaveBeenCalledWith('mom');
   });

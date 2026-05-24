@@ -9,7 +9,7 @@ import { locales } from './locales';
 import { applyFamilyTreeEdit } from './services/editor';
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './services/legacy-importer';
 import { parseFamilyTreeText } from './services/parser';
-import { FamilyTreeEdit, Language, PersonRecord } from './types';
+import { FamilyTreeDocument, FamilyTreeEdit, Language, PersonRecord } from './types';
 
 type ViewMode = 'both' | 'text' | 'graph';
 
@@ -25,6 +25,7 @@ function App(): ReactElement {
   const [focusPersonId, setFocusPersonId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedFamilyIds, setCollapsedFamilyIds] = useState<ReadonlySet<string>>(new Set());
+  const [collapsedPersonIds, setCollapsedPersonIds] = useState<ReadonlySet<string>>(new Set());
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const document = useMemo(() => parseFamilyTreeText(text), [text]);
@@ -59,18 +60,15 @@ function App(): ReactElement {
     const ancestors = findAncestorFamilyIds(document, firstMatch);
     setFocusPersonId(firstMatch);
     setCollapsedFamilyIds((previousIds) => removeIds(previousIds, ancestors));
+    setCollapsedPersonIds((previousIds) => removeIds(previousIds, collectParentIds(document, ancestors)));
   }, [document, searchQuery]);
 
   const handleToggleFamily = useCallback((familyId: string): void => {
-    setCollapsedFamilyIds((previousIds) => {
-      const nextIds = new Set(previousIds);
-      if (nextIds.has(familyId)) {
-        nextIds.delete(familyId);
-      } else {
-        nextIds.add(familyId);
-      }
-      return nextIds;
-    });
+    setCollapsedFamilyIds((previousIds) => toggleId(previousIds, familyId));
+  }, []);
+
+  const handleTogglePerson = useCallback((personId: string): void => {
+    setCollapsedPersonIds((previousIds) => toggleId(previousIds, personId));
   }, []);
 
   const handleSubmitEdit = useCallback((edit: FamilyTreeEdit): void => {
@@ -171,6 +169,7 @@ function App(): ReactElement {
         {viewMode !== 'text' ? (
           <GraphView
             collapsedFamilyIds={collapsedFamilyIds}
+            collapsedPersonIds={collapsedPersonIds}
             document={document}
             focusPersonId={focusPersonId}
             language={language}
@@ -179,6 +178,7 @@ function App(): ReactElement {
             onAddSpouse={(person) => setPendingEdit({ mode: 'add-spouse', person })}
             onFocusPerson={setFocusPersonId}
             onToggleFamily={handleToggleFamily}
+            onTogglePerson={handleTogglePerson}
             searchQuery={searchQuery}
           />
         ) : null}
@@ -211,6 +211,27 @@ function readLanguage(): Language {
 function removeIds(sourceIds: ReadonlySet<string>, idsToRemove: ReadonlySet<string>): ReadonlySet<string> {
   const nextIds = new Set(Array.from(sourceIds).filter((id) => !idsToRemove.has(id)));
   return nextIds.size === sourceIds.size ? sourceIds : nextIds;
+}
+
+function toggleId(sourceIds: ReadonlySet<string>, id: string): ReadonlySet<string> {
+  const nextIds = new Set(sourceIds);
+  if (nextIds.has(id)) {
+    nextIds.delete(id);
+  } else {
+    nextIds.add(id);
+  }
+  return nextIds;
+}
+
+function collectParentIds(
+  document: FamilyTreeDocument,
+  familyIds: ReadonlySet<string>
+): ReadonlySet<string> {
+  const parentIds = new Set<string>();
+  familyIds.forEach((familyId) => {
+    document.families.get(familyId)?.parents.forEach((parentId) => parentIds.add(parentId));
+  });
+  return parentIds;
 }
 
 function documentGlobal(): Document {
