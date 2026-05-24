@@ -1,4 +1,4 @@
-import { FamilyTreeEdit, PersonDraft, PersonRecord } from '../types';
+import { FamilyRecord, FamilyTreeEdit, PersonDraft, PersonRecord } from '../types';
 import { createFamilyId, parseFamilyTreeText, serializeFamilyTreeDocument } from './parser';
 
 export function applyFamilyTreeEdit(text: string, edit: FamilyTreeEdit): string {
@@ -38,11 +38,72 @@ export function applyFamilyTreeEdit(text: string, edit: FamilyTreeEdit): string 
     });
   }
 
+  if (edit.type === 'add-parent') {
+    if (edit.parent) {
+      people.set(edit.parent.id, toPersonRecord(edit.parent));
+    }
+
+    addParentFamily(families, edit.childId, edit.parentId);
+  }
+
   return serializeFamilyTreeDocument({
     people,
     families,
     diagnostics: document.diagnostics
   });
+}
+
+function addParentFamily(
+  families: Map<string, FamilyRecord>,
+  childId: string,
+  parentId: string
+): void {
+  if (hasParentChildFamily(families, childId, parentId)) {
+    return;
+  }
+
+  const singleParentFamily = Array.from(families.values()).find((family) => {
+    return family.parents.length === 1 && family.children.includes(childId);
+  });
+  if (singleParentFamily) {
+    const parents: readonly [string, string] = [singleParentFamily.parents[0], parentId];
+    const familyId = createFamilyId(parents);
+    const previousFamily = families.get(familyId);
+    families.delete(singleParentFamily.id);
+    families.set(familyId, {
+      id: familyId,
+      parents: previousFamily?.parents ?? parents,
+      children: mergeChildren(previousFamily?.children ?? [], singleParentFamily.children)
+    });
+    return;
+  }
+
+  const parents: readonly [string] = [parentId];
+  const familyId = createFamilyId(parents);
+  const previousFamily = families.get(familyId);
+  families.set(familyId, {
+    id: familyId,
+    parents,
+    children: previousFamily?.children.includes(childId)
+      ? previousFamily.children
+      : [...(previousFamily?.children ?? []), childId]
+  });
+}
+
+function hasParentChildFamily(
+  families: ReadonlyMap<string, FamilyRecord>,
+  childId: string,
+  parentId: string
+): boolean {
+  return Array.from(families.values()).some((family) => {
+    return family.parents.includes(parentId) && family.children.includes(childId);
+  });
+}
+
+function mergeChildren(firstChildren: readonly string[], secondChildren: readonly string[]): readonly string[] {
+  return secondChildren.reduce((children, childId) => {
+    return children.includes(childId) ? children : [...children, childId];
+  }, [...firstChildren]);
 }
 
 export function createUniquePersonId(name: string, existingIds: ReadonlySet<string>): string {

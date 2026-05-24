@@ -5,7 +5,7 @@ import { createUniquePersonId } from '../services/editor';
 import { suggestPeople } from '../services/suggestions';
 import { FamilyTreeEdit, FamilyTreeDocument, Gender, PersonDraft, PersonRecord } from '../types';
 
-type EditMode = 'add-spouse' | 'add-child';
+export type EditMode = 'add-spouse' | 'add-child' | 'add-parent';
 type MemberMode = 'existing' | 'new';
 
 interface EditModalProps {
@@ -45,7 +45,7 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
 
     onSubmitEdit(mode === 'add-spouse'
       ? { type: 'add-spouse', personId: person.id, spouseId: targetPersonId, spouse: personDraft ?? undefined }
-      : { type: 'add-child', parents: getSelectedParents(), childId: targetPersonId, child: personDraft ?? undefined });
+      : createRelativeEdit(targetPersonId, personDraft));
   }
 
   function getSelectedParents(): readonly [string] | readonly [string, string] {
@@ -53,11 +53,31 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
     return family?.parents ?? [person.id];
   }
 
+  function createRelativeEdit(targetPersonId: string, personDraft: PersonDraft | null): FamilyTreeEdit {
+    if (mode === 'add-parent') {
+      return {
+        type: 'add-parent',
+        childId: person.id,
+        parentId: targetPersonId,
+        parent: personDraft ?? undefined
+      };
+    }
+
+    return {
+      type: 'add-child',
+      parents: getSelectedParents(),
+      childId: targetPersonId,
+      child: personDraft ?? undefined
+    };
+  }
+
+  const modalLabel = getModalLabel(locale, mode);
+  const modalHeading = getModalHeading(locale, mode, person.name);
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={mode === 'add-spouse' ? locale.addSpouse : locale.addChild}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modalLabel}>
       <form className="edit-modal" onSubmit={handleSubmit}>
         <div className="modal-heading">
-          <h2>{mode === 'add-spouse' ? locale.addSpouseFor(person.name) : locale.addChildFor(person.name)}</h2>
+          <h2>{modalHeading}</h2>
           <button className="icon-button" onClick={onClose} type="button" aria-label={locale.closeDialog}>
             <X size={16} />
           </button>
@@ -140,6 +160,22 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
       </form>
     </div>
   );
+}
+
+function getModalLabel(locale: LocaleStrings, mode: EditMode): string {
+  if (mode === 'add-spouse') {
+    return locale.addSpouse;
+  }
+
+  return mode === 'add-child' ? locale.addChild : locale.addParent;
+}
+
+function getModalHeading(locale: LocaleStrings, mode: EditMode, name: string): string {
+  if (mode === 'add-spouse') {
+    return locale.addSpouseFor(name);
+  }
+
+  return mode === 'add-child' ? locale.addChildFor(name) : locale.addParentFor(name);
 }
 
 function createPersonDraft(

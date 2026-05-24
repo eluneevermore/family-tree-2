@@ -14,8 +14,11 @@ export interface LocaleStrings {
   readonly parserDiagnostics: string;
   readonly addSpouse: string;
   readonly addChild: string;
+  readonly addParent: string;
   readonly addSpouseFor: (name: string) => string;
   readonly addChildFor: (name: string) => string;
+  readonly addParentFor: (name: string) => string;
+  readonly nodeActionsFor: (name: string) => string;
   readonly closeDialog: string;
   readonly relationship: string;
   readonly singleParent: (name: string) => string;
@@ -60,8 +63,11 @@ export const locales: Record<Language, LocaleStrings> = {
     parserDiagnostics: 'Parser diagnostics',
     addSpouse: 'Add spouse',
     addChild: 'Add child',
+    addParent: 'Add parent',
     addSpouseFor: (name) => `Add spouse for ${name}`,
     addChildFor: (name) => `Add child for ${name}`,
+    addParentFor: (name) => `Add parent for ${name}`,
+    nodeActionsFor: (name) => `Actions for ${name}`,
     closeDialog: 'Close dialog',
     relationship: 'Relationship',
     singleParent: (name) => `Single parent: ${name}`,
@@ -104,8 +110,11 @@ export const locales: Record<Language, LocaleStrings> = {
     parserDiagnostics: 'Cảnh báo cú pháp',
     addSpouse: 'Thêm vợ/chồng',
     addChild: 'Thêm con',
+    addParent: 'Thêm bố/mẹ',
     addSpouseFor: (name) => `Thêm vợ/chồng cho ${name}`,
     addChildFor: (name) => `Thêm con cho ${name}`,
+    addParentFor: (name) => `Thêm bố/mẹ cho ${name}`,
+    nodeActionsFor: (name) => `Thao tác cho ${name}`,
     closeDialog: 'Đóng hộp thoại',
     relationship: 'Quan hệ',
     singleParent: (name) => `Bố/mẹ đơn thân: ${name}`,

@@ -1,6 +1,6 @@
 export const DEFAULT_TREE_TEXT = `# people
-gf:John Smith,g=m,b=1950
-gm:Mary Smith,g=f,b=1952
+gf:John Smith,g=m,b=1950,d=2020
+gm:Mary Smith,g=f,b=1952,d=2021
 f:Robert Smith,g=m,b=1975
 u:David Smith,g=m,b=1978
 aunt:Karen Smith,g=f,b=1981

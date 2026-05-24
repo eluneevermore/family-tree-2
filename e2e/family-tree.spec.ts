@@ -167,7 +167,8 @@ beta:Beta Person,g=f
 `);
   await page.getByRole('button', { name: 'graph' }).click();
   await page.getByLabel('Search people').fill('Alpha');
-  await page.getByRole('button', { name: 'Add spouse for Alpha' }).click();
+  await page.getByTestId('person-actions-a').click();
+  await page.getByTestId('person-action-add-spouse-a').click();
   await page.getByRole('button', { name: 'Existing' }).click();
   await page.getByLabel('Person id').fill('be');
 

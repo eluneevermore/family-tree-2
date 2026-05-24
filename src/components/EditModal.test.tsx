@@ -60,6 +60,32 @@ describe('EditModal', () => {
     });
   });
 
+  it('submits a parent edit', async () => {
+    const user = userEvent.setup();
+    const document = parseFamilyTreeText('c:Child,g=u\n');
+    const onSubmitEdit = vi.fn();
+    render(
+      <EditModal
+        document={document}
+        locale={locales.en}
+        mode="add-parent"
+        person={document.people.get('c')!}
+        onClose={vi.fn()}
+        onSubmitEdit={onSubmitEdit}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Name'), 'Parent Person');
+    await user.click(screen.getByRole('button', { name: 'Update text' }));
+
+    expect(onSubmitEdit).toHaveBeenCalledWith({
+      type: 'add-parent',
+      childId: 'c',
+      parentId: 'parentperson',
+      parent: { id: 'parentperson', name: 'Parent Person', gender: 'unknown', born: undefined }
+    });
+  });
+
   it('suggests existing people by id', async () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText('a:Alpha,g=u\nbeta:Beta Person,g=f\n');

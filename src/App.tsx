@@ -2,7 +2,7 @@ import { ChangeEvent, ReactElement, useCallback, useEffect, useMemo, useRef, use
 import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, Search, Upload } from 'lucide-react';
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
-import { EditModal } from './components/EditModal';
+import { EditModal, type EditMode } from './components/EditModal';
 import { DEFAULT_TREE_TEXT, EXPORT_FILE_NAME, STORAGE_KEY, STORAGE_LANGUAGE_KEY, STORAGE_VIEW_MODE_KEY } from './constants';
 import { findAncestorFamilyIds, findInitialFocusPersonId, findMatchingPersonIds } from './domain/visibility';
 import { locales } from './locales';
@@ -14,7 +14,7 @@ import { FamilyTreeDocument, FamilyTreeEdit, Language, PersonRecord } from './ty
 type ViewMode = 'both' | 'text' | 'graph';
 
 interface PendingEdit {
-  readonly mode: 'add-spouse' | 'add-child';
+  readonly mode: EditMode;
   readonly person: PersonRecord;
 }
 
@@ -175,6 +175,7 @@ function App(): ReactElement {
             language={language}
             locale={locale}
             onAddChild={(person) => setPendingEdit({ mode: 'add-child', person })}
+            onAddParent={(person) => setPendingEdit({ mode: 'add-parent', person })}
             onAddSpouse={(person) => setPendingEdit({ mode: 'add-spouse', person })}
             onFocusPerson={setFocusPersonId}
             onToggleFamily={handleToggleFamily}

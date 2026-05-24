@@ -40,6 +40,7 @@ interface GraphViewProps {
   readonly onToggleFamily: (familyId: string) => void;
   readonly onTogglePerson: (personId: string) => void;
   readonly onAddChild: (person: PersonRecord) => void;
+  readonly onAddParent: (person: PersonRecord) => void;
   readonly onAddSpouse: (person: PersonRecord) => void;
 }
 
@@ -67,6 +68,7 @@ function GraphCanvas({
   onToggleFamily,
   onTogglePerson,
   onAddChild,
+  onAddParent,
   onAddSpouse
 }: GraphViewProps): ReactElement {
   const [layout, setLayout] = useState<TreeLayout>({ people: [], families: [], edges: [] });
@@ -85,6 +87,7 @@ function GraphCanvas({
     selectedPersonId,
     locale,
     onAddChild,
+    onAddParent,
     onAddSpouse,
     onFocusPerson,
     onHoverPerson: setHoveredPersonId,
@@ -97,6 +100,7 @@ function GraphCanvas({
     locale,
     matchingPersonIds,
     onAddChild,
+    onAddParent,
     onAddSpouse,
     onFocusPerson,
     onToggleFamily,
@@ -219,6 +223,7 @@ interface BuildFlowNodesOptions {
   readonly selectedPersonId: string | null;
   readonly locale: LocaleStrings;
   readonly onAddChild: (person: PersonRecord) => void;
+  readonly onAddParent: (person: PersonRecord) => void;
   readonly onAddSpouse: (person: PersonRecord) => void;
   readonly onFocusPerson: (personId: string) => void;
   readonly onHoverPerson: (personId: string | null) => void;
@@ -234,6 +239,7 @@ function buildFlowNodes({
   selectedPersonId,
   locale,
   onAddChild,
+  onAddParent,
   onAddSpouse,
   onFocusPerson,
   onHoverPerson,
@@ -254,6 +260,7 @@ function buildFlowNodes({
       isSelected: selectedPersonId === layoutNode.id,
       locale,
       onAddChild,
+      onAddParent,
       onAddSpouse,
       onFocusPerson,
       onHoverPerson,

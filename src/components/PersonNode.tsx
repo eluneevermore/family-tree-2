@@ -1,6 +1,6 @@
-import { Baby, ChevronDown, ChevronRight, Heart, Plus, UserPlus } from 'lucide-react';
+import { Baby, ChevronDown, ChevronRight, Heart, MoreHorizontal, UserPlus, Users } from 'lucide-react';
 import { Handle, NodeProps, Position } from '@xyflow/react';
-import { ChangeEvent, MouseEvent, ReactElement } from 'react';
+import { ChangeEvent, MouseEvent, ReactElement, useState } from 'react';
 import { GENDER_COLORS } from '../constants';
 import { LocaleStrings } from '../locales';
 import { PersonRecord } from '../types';
@@ -27,6 +27,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   readonly isSelected: boolean;
   readonly locale: LocaleStrings;
   readonly onAddChild: (person: PersonRecord) => void;
+  readonly onAddParent: (person: PersonRecord) => void;
   readonly onAddSpouse: (person: PersonRecord) => void;
   readonly onFocusPerson: (personId: string) => void;
   readonly onHoverPerson: (personId: string | null) => void;
@@ -37,7 +38,9 @@ export interface PersonNodeData extends Record<string, unknown> {
 
 export function PersonNode({ data }: NodeProps): ReactElement {
   const nodeData = data as PersonNodeData;
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const borderColor = GENDER_COLORS[nodeData.person.gender];
+  const lifeYears = formatLifeYears(nodeData.person);
   const nodeClassName = [
     'person-node',
     nodeData.isSearchMatch ? 'person-node-match' : '',
@@ -66,7 +69,7 @@ export function PersonNode({ data }: NodeProps): ReactElement {
         <div className="person-name" title={nodeData.person.name}>{nodeData.person.name}</div>
         <div className="person-meta">
           <span>{nodeData.person.id}</span>
-          {nodeData.person.born ? <span>{nodeData.person.born}</span> : null}
+          {lifeYears ? <span>{lifeYears}</span> : null}
         </div>
       </div>
 
@@ -77,6 +80,8 @@ export function PersonNode({ data }: NodeProps): ReactElement {
               className="spouse-item nodrag nopan"
               data-testid={`spouse-item-${spouse.familyId}`}
               key={`${spouse.familyId}:${spouse.id}`}
+              onMouseEnter={() => nodeData.onHoverPerson(spouse.id)}
+              onMouseLeave={() => nodeData.onHoverPerson(nodeData.person.id)}
             >
               <button
                 aria-label={`${nodeData.locale.focus} ${spouse.name}`}
@@ -117,37 +122,90 @@ export function PersonNode({ data }: NodeProps): ReactElement {
         </div>
       ) : null}
 
-      <div className="node-actions" aria-label={`Actions for ${nodeData.person.name}`}>
+      <div className="node-actions nodrag nopan" aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}>
         <button
-          aria-label={nodeData.locale.addSpouseFor(nodeData.person.name)}
+          aria-expanded={isActionMenuOpen}
+          aria-haspopup="menu"
+          aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}
           className="icon-button"
+          data-testid={`person-actions-${nodeData.person.id}`}
           onClick={(event) => {
             stopClick(event);
-            nodeData.onAddSpouse(nodeData.person);
+            setIsActionMenuOpen((isOpen) => !isOpen);
           }}
-          title={nodeData.locale.addSpouse}
+          title={nodeData.locale.nodeActionsFor(nodeData.person.name)}
           type="button"
         >
-          <UserPlus size={14} />
+          <MoreHorizontal size={15} />
         </button>
-        <button
-          aria-label={nodeData.locale.addChildFor(nodeData.person.name)}
-          className="icon-button"
-          onClick={(event) => {
-            stopClick(event);
-            nodeData.onAddChild(nodeData.person);
-          }}
-          title={nodeData.locale.addChild}
-          type="button"
-        >
-          <Baby size={14} />
-        </button>
-        <span className="node-action-anchor" aria-hidden="true">
-          <Plus size={12} />
-        </span>
+        {isActionMenuOpen ? (
+          <div className="node-action-menu" role="menu">
+            <NodeActionMenuButton
+              actionTestId={`person-action-add-spouse-${nodeData.person.id}`}
+              icon={<UserPlus size={13} />}
+              label={nodeData.locale.addSpouse}
+              onClick={() => nodeData.onAddSpouse(nodeData.person)}
+              stopClick={stopClick}
+            />
+            <NodeActionMenuButton
+              actionTestId={`person-action-add-child-${nodeData.person.id}`}
+              icon={<Baby size={13} />}
+              label={nodeData.locale.addChild}
+              onClick={() => nodeData.onAddChild(nodeData.person)}
+              stopClick={stopClick}
+            />
+            <NodeActionMenuButton
+              actionTestId={`person-action-add-parent-${nodeData.person.id}`}
+              icon={<Users size={13} />}
+              label={nodeData.locale.addParent}
+              onClick={() => nodeData.onAddParent(nodeData.person)}
+              stopClick={stopClick}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
+}
+
+interface NodeActionMenuButtonProps {
+  readonly actionTestId: string;
+  readonly icon: ReactElement;
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly stopClick: (event: MouseEvent<HTMLButtonElement>) => void;
+}
+
+function NodeActionMenuButton({
+  actionTestId,
+  icon,
+  label,
+  onClick,
+  stopClick
+}: NodeActionMenuButtonProps): ReactElement {
+  return (
+    <button
+      className="node-action-menu-item"
+      data-testid={actionTestId}
+      onClick={(event) => {
+        stopClick(event);
+        onClick();
+      }}
+      role="menuitem"
+      type="button"
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function formatLifeYears(person: PersonRecord): string | null {
+  if (person.born && person.died) {
+    return `${person.born} - ${person.died}`;
+  }
+
+  return person.born ?? person.died ?? null;
 }
 
 interface SpouseFamilyCheckboxProps {

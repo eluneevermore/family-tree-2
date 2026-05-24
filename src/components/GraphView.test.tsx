@@ -6,7 +6,7 @@ import { parseFamilyTreeText } from '../services/parser';
 import { GraphView } from './GraphView';
 
 const GRAPH_TEXT = `
-dad:Dad,g=m,b=1970
+dad:Dad,g=m,b=1970,d=2010
 mom:Mom,g=f,b=1972
 me:Me,g=m,b=2000
 sis:Sister,g=f,b=1998
@@ -19,7 +19,6 @@ describe('GraphView', () => {
   });
 
   it('selects a person and shows kinship on hover', async () => {
-    const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
     render(
       <GraphView
@@ -30,6 +29,7 @@ describe('GraphView', () => {
         language="en"
         locale={locales.en}
         onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
         onToggleFamily={vi.fn()}
@@ -43,6 +43,56 @@ describe('GraphView', () => {
 
     expect(await screen.findByText('father')).toBeInTheDocument();
     expect(screen.getByText('son')).toBeInTheDocument();
+  });
+
+  it('shows kinship when hovering a spouse shortcut item', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+        searchQuery=""
+      />
+    );
+
+    fireEvent.click(await screen.findByTestId('person-node-me'));
+    fireEvent.mouseEnter(await screen.findByTestId('spouse-item-couple:dad+mom'));
+
+    expect(await screen.findByText('mother')).toBeInTheDocument();
+    expect(screen.getByText('son')).toBeInTheDocument();
+  });
+
+  it('shows birth and death years in person nodes', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+        searchQuery=""
+      />
+    );
+
+    expect(await screen.findByText('1970 - 2010')).toBeInTheDocument();
   });
 
   it('fires node toggle, spouse checkbox, and spouse shortcut actions', async () => {
@@ -60,6 +110,7 @@ describe('GraphView', () => {
         language="en"
         locale={locales.en}
         onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={onFocusPerson}
         onToggleFamily={onToggleFamily}
@@ -91,6 +142,7 @@ describe('GraphView', () => {
         language="en"
         locale={locales.en}
         onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
         onToggleFamily={vi.fn()}
@@ -102,5 +154,37 @@ describe('GraphView', () => {
     await user.click(await screen.findByRole('button', { name: locales.en.rearrangeGraph }));
 
     expect(confirm).toHaveBeenCalledWith(locales.en.confirmRearrangeGraph);
+  });
+
+  it('groups add actions into a menu and fires add parent', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    const onAddParent = vi.fn();
+    render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddParent={onAddParent}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+        searchQuery=""
+      />
+    );
+
+    const dadNode = await screen.findByTestId('person-node-dad');
+    fireEvent.click(within(dadNode).getByTestId('person-actions-dad'));
+    expect(within(dadNode).getByTestId('person-action-add-spouse-dad')).toHaveTextContent(locales.en.addSpouse);
+    expect(within(dadNode).getByTestId('person-action-add-spouse-dad')).not.toHaveTextContent('Dad');
+    expect(within(dadNode).getByTestId('person-action-add-child-dad')).toHaveTextContent(locales.en.addChild);
+    expect(within(dadNode).getByTestId('person-action-add-parent-dad')).toHaveTextContent(locales.en.addParent);
+    fireEvent.click(within(dadNode).getByTestId('person-action-add-parent-dad'));
+
+    expect(onAddParent).toHaveBeenCalledWith(document.people.get('dad'));
   });
 });

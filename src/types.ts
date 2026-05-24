@@ -56,6 +56,12 @@ export type FamilyTreeEdit =
       readonly child?: PersonDraft;
     }
   | {
+      readonly type: 'add-parent';
+      readonly childId: string;
+      readonly parentId: string;
+      readonly parent?: PersonDraft;
+    }
+  | {
       readonly type: 'upsert-person';
       readonly person: PersonDraft;
     };
