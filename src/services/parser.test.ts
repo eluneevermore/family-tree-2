@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './legacy-importer';
 import { parseFamilyTreeText, serializeFamilyTreeDocument } from './parser';
+import { DEFAULT_TREE_TEXT } from '../constants';
 
 describe('parseFamilyTreeText', () => {
   it('parses compact people and relationship lines', () => {
@@ -57,6 +58,14 @@ a->b
     expect(document.diagnostics.some((diagnostic) => diagnostic.code === 'duplicate-person')).toBe(true);
     expect(document.diagnostics.some((diagnostic) => diagnostic.code === 'unknown-reference')).toBe(true);
     expect(document.diagnostics.some((diagnostic) => diagnostic.code === 'cycle')).toBe(true);
+  });
+
+  it('keeps the default stress sample parseable', () => {
+    const document = parseFamilyTreeText(DEFAULT_TREE_TEXT);
+
+    expect(document.people.size).toBeGreaterThan(10);
+    expect(document.families.size).toBeGreaterThan(5);
+    expect(document.diagnostics).toEqual([]);
   });
 });
 

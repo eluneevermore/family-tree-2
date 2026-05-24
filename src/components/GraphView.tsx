@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
+import { RefreshCcw } from 'lucide-react';
 import {
   Background,
   BackgroundVariant,
@@ -77,6 +78,31 @@ function GraphCanvas({
   const kinship = useMemo(() => {
     return describeKinship(document, selectedPersonId, hoveredPersonId, language);
   }, [document, hoveredPersonId, language, selectedPersonId]);
+  const defaultNodes = useMemo(() => buildFlowNodes({
+    layout,
+    document,
+    matchingPersonIds,
+    selectedPersonId,
+    locale,
+    onAddChild,
+    onAddSpouse,
+    onFocusPerson,
+    onHoverPerson: setHoveredPersonId,
+    onSelectPerson: setSelectedPersonId,
+    onToggleFamily,
+    onTogglePerson
+  }), [
+    document,
+    layout,
+    locale,
+    matchingPersonIds,
+    onAddChild,
+    onAddSpouse,
+    onFocusPerson,
+    onToggleFamily,
+    onTogglePerson,
+    selectedPersonId
+  ]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -104,33 +130,17 @@ function GraphCanvas({
   }, [reactFlow]);
 
   useEffect(() => {
-    setNodes(buildFlowNodes({
-      layout,
-      document,
-      matchingPersonIds,
-      selectedPersonId,
-      locale,
-      onAddChild,
-      onAddSpouse,
-      onFocusPerson,
-      onHoverPerson: setHoveredPersonId,
-      onSelectPerson: setSelectedPersonId,
-      onToggleFamily,
-      onTogglePerson
-    }));
-  }, [
-    document,
-    layout,
-    locale,
-    matchingPersonIds,
-    onAddChild,
-    onAddSpouse,
-    onFocusPerson,
-    onToggleFamily,
-    onTogglePerson,
-    selectedPersonId,
-    setNodes
-  ]);
+    setNodes((currentNodes) => preserveCurrentPositions(defaultNodes, currentNodes));
+  }, [defaultNodes, setNodes]);
+
+  const rearrangeGraph = useCallback((): void => {
+    if (!window.confirm(locale.confirmRearrangeGraph)) {
+      return;
+    }
+
+    setNodes(defaultNodes);
+    window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.2, duration: 250 }));
+  }, [defaultNodes, locale.confirmRearrangeGraph, reactFlow, setNodes]);
 
   useEffect(() => {
     const firstMatch = Array.from(matchingPersonIds)[0];
@@ -161,6 +171,16 @@ function GraphCanvas({
         <Background color="#dbe3ef" gap={22} variant={BackgroundVariant.Dots} />
         <MiniMap pannable zoomable />
       </ReactFlow>
+      <button
+        aria-label={locale.rearrangeGraph}
+        className="graph-rearrange-button"
+        onClick={rearrangeGraph}
+        title={locale.rearrangeGraph}
+        type="button"
+      >
+        <RefreshCcw size={15} />
+        <span>{locale.rearrangeGraph}</span>
+      </button>
       {kinship ? (
         <div className="kinship-card" role="status" aria-label="Kinship">
           <div className="kinship-title">{locale.relationship}</div>
@@ -283,7 +303,15 @@ function buildFlowEdges(layout: TreeLayout): Edge[] {
       ? { type: MarkerType.ArrowClosed, color: '#2563eb', width: 18, height: 18 }
       : undefined,
     style: edge.type === 'marriage'
-      ? { stroke: '#64748b', strokeWidth: 2 }
+      ? { stroke: '#94a3b8', strokeWidth: 1.5, strokeDasharray: '7 8', opacity: 0.55 }
       : { stroke: '#2563eb', strokeWidth: 2 }
   }));
+}
+
+function preserveCurrentPositions(defaultNodes: readonly Node[], currentNodes: readonly Node[]): Node[] {
+  const currentPositions = new Map(currentNodes.map((node) => [node.id, node.position]));
+  return defaultNodes.map((node) => {
+    const currentPosition = currentPositions.get(node.id);
+    return currentPosition ? { ...node, position: currentPosition } : node;
+  });
 }

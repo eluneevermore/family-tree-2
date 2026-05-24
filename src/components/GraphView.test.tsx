@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { locales } from '../locales';
 import { parseFamilyTreeText } from '../services/parser';
 import { GraphView } from './GraphView';
@@ -14,6 +14,10 @@ dad+mom->sis,me
 `;
 
 describe('GraphView', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('selects a person and shows kinship on hover', async () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
@@ -72,5 +76,31 @@ describe('GraphView', () => {
     expect(onTogglePerson).toHaveBeenCalledWith('dad');
     expect(onToggleFamily).toHaveBeenCalledWith('couple:dad+mom');
     expect(onFocusPerson).toHaveBeenCalledWith('mom');
+  });
+
+  it('confirms before resetting manual graph positions', async () => {
+    const user = userEvent.setup();
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+        searchQuery=""
+      />
+    );
+
+    await user.click(await screen.findByRole('button', { name: locales.en.rearrangeGraph }));
+
+    expect(confirm).toHaveBeenCalledWith(locales.en.confirmRearrangeGraph);
   });
 });

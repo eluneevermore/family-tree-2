@@ -36,6 +36,8 @@ export interface LocaleStrings {
   readonly calls: string;
   readonly relationshipHint: string;
   readonly focus: string;
+  readonly rearrangeGraph: string;
+  readonly confirmRearrangeGraph: string;
   readonly showDescendants: string;
   readonly hideDescendants: string;
   readonly showDescendantsWith: (name: string) => string;
@@ -80,6 +82,8 @@ export const locales: Record<Language, LocaleStrings> = {
     calls: 'calls',
     relationshipHint: 'Select a person, then hover another person to see kinship.',
     focus: 'Focus',
+    rearrangeGraph: 'Rearrange graph',
+    confirmRearrangeGraph: 'Clear manual node positions and use the default arrangement?',
     showDescendants: 'Show descendants',
     hideDescendants: 'Hide descendants',
     showDescendantsWith: (name) => `Show descendants with ${name}`,
@@ -122,6 +126,8 @@ export const locales: Record<Language, LocaleStrings> = {
     calls: 'gọi là',
     relationshipHint: 'Chọn một người, rồi di chuột lên người khác để xem cách xưng hô.',
     focus: 'Chuyển nhánh',
+    rearrangeGraph: 'Sắp xếp lại',
+    confirmRearrangeGraph: 'Xoá vị trí kéo tay và dùng bố cục mặc định?',
     showDescendants: 'Hiện hậu duệ',
     hideDescendants: 'Ẩn hậu duệ',
     showDescendantsWith: (name) => `Hiện hậu duệ với ${name}`,

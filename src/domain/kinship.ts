@@ -2,6 +2,19 @@ import { FamilyRecord, FamilyTreeDocument, Gender, KinshipResult, Language, Pers
 import { parseBirthSortValue } from '../services/parser';
 
 type RelativeAge = 'older' | 'younger' | 'unknown';
+type RelationshipKind =
+  | 'parent'
+  | 'child'
+  | 'spouse'
+  | 'sibling'
+  | 'grandparent'
+  | 'grandchild'
+  | 'aunt-uncle'
+  | 'niece-nephew'
+  | 'cousin'
+  | 'relative';
+
+const RELATIONSHIP_LABEL_SEPARATOR = ', ';
 
 interface ParentLink {
   readonly parent: PersonRecord;
@@ -38,51 +51,55 @@ function describeOneWay(
   target: PersonRecord,
   language: Language
 ): string {
-  const relationship = getRelationshipKind(document, source, target);
-  if (language === 'vi') {
-    return describeVietnamese(document, source, target, relationship);
-  }
+  const relationships = getRelationshipKinds(document, source, target);
+  const labels = relationships.map((relationship) => {
+    return language === 'vi'
+      ? describeVietnamese(document, source, target, relationship)
+      : describeEnglish(target, relationship);
+  });
 
-  return describeEnglish(target, relationship);
+  return uniqueLabels(labels).join(RELATIONSHIP_LABEL_SEPARATOR);
 }
 
-function getRelationshipKind(
+function getRelationshipKinds(
   document: FamilyTreeDocument,
   source: PersonRecord,
   target: PersonRecord
-): string {
-  if (isSpouse(document, source.id, target.id)) {
-    return 'spouse';
-  }
+): readonly RelationshipKind[] {
+  const relationships: RelationshipKind[] = [];
 
   if (isParentOf(document, target.id, source.id)) {
-    return 'parent';
+    relationships.push('parent');
   }
 
   if (isParentOf(document, source.id, target.id)) {
-    return 'child';
+    relationships.push('child');
+  }
+
+  if (isSpouse(document, source.id, target.id)) {
+    relationships.push('spouse');
   }
 
   if (areSiblings(document, source.id, target.id)) {
-    return 'sibling';
+    relationships.push('sibling');
   }
 
   const sourceParents = getParentLinks(document, source.id);
   const targetParents = getParentLinks(document, target.id);
   if (sourceParents.some((sourceParent) => isParentOf(document, target.id, sourceParent.parent.id))) {
-    return 'grandparent';
+    relationships.push('grandparent');
   }
 
   if (targetParents.some((targetParent) => isParentOf(document, source.id, targetParent.parent.id))) {
-    return 'grandchild';
+    relationships.push('grandchild');
   }
 
   if (sourceParents.some((sourceParent) => areSiblings(document, sourceParent.parent.id, target.id))) {
-    return 'aunt-uncle';
+    relationships.push('aunt-uncle');
   }
 
   if (targetParents.some((targetParent) => areSiblings(document, source.id, targetParent.parent.id))) {
-    return 'niece-nephew';
+    relationships.push('niece-nephew');
   }
 
   if (sourceParents.some((sourceParent) => targetParents.some((targetParent) => areSiblings(
@@ -90,13 +107,13 @@ function getRelationshipKind(
     sourceParent.parent.id,
     targetParent.parent.id
   )))) {
-    return 'cousin';
+    relationships.push('cousin');
   }
 
-  return 'relative';
+  return relationships.length > 0 ? relationships : ['relative'];
 }
 
-function describeEnglish(target: PersonRecord, relationship: string): string {
+function describeEnglish(target: PersonRecord, relationship: RelationshipKind): string {
   if (relationship === 'parent') {
     return target.gender === 'male' ? 'father' : target.gender === 'female' ? 'mother' : 'parent';
   }
@@ -140,7 +157,7 @@ function describeVietnamese(
   document: FamilyTreeDocument,
   source: PersonRecord,
   target: PersonRecord,
-  relationship: string
+  relationship: RelationshipKind
 ): string {
   if (relationship === 'parent') {
     return target.gender === 'male' ? 'bố' : target.gender === 'female' ? 'mẹ' : 'bố/mẹ';
@@ -254,6 +271,10 @@ function isParentOf(document: FamilyTreeDocument, parentId: string, childId: str
 }
 
 function areSiblings(document: FamilyTreeDocument, firstPersonId: string, secondPersonId: string): boolean {
+  if (firstPersonId === secondPersonId) {
+    return false;
+  }
+
   return Array.from(document.families.values()).some((family) => {
     return family.children.includes(firstPersonId) && family.children.includes(secondPersonId);
   });
@@ -280,4 +301,8 @@ function getRelativeAge(source: PersonRecord, target: PersonRecord): RelativeAge
   }
 
   return targetBirth < sourceBirth ? 'older' : 'younger';
+}
+
+function uniqueLabels(labels: readonly string[]): readonly string[] {
+  return labels.filter((label, index) => labels.indexOf(label) === index);
 }

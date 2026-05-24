@@ -3,15 +3,33 @@ gf:John Smith,g=m,b=1950
 gm:Mary Smith,g=f,b=1952
 f:Robert Smith,g=m,b=1975
 u:David Smith,g=m,b=1978
-
-# relationships
-gf+gm->f,u
+aunt:Karen Smith,g=f,b=1981
+uncleInLaw:Paul Nguyen,g=m,b=1979
 
 m:Linda Jones,g=f,b=1977
 me:Alex Smith,g=m,b=2000
 sis:Chloe Smith,g=f,b=2003
+daughter:Maya Smith,g=f,b=2005
+step:Ana Lee,g=f,b=1982
+half:Noah Smith,g=m,b=2010
+cousin:Lan Nguyen,g=f,b=2004
+crossKid:River Smith,g=o,b=2028
+overlapSon:Theo Smith,g=m,b=2026
+overlapDaughter:Ivy Smith,g=f,b=2029
+solo:June Carter,g=f,b=1988
+soloChild:Kai Carter,g=u,b=2016
 
-f+m->me,sis
+# relationships
+gf+gm->f,u,aunt
+
+f+m->me,sis,daughter
+aunt+uncleInLaw->cousin
+f+step->half
+me+cousin->crossKid
+solo->soloChild
+
+# stress case: overlapping roles, e.g. spouse and parent at the same time
+f+daughter->overlapSon,overlapDaughter
 `;
 
 export const STORAGE_KEY = 'family-tree-v2-text';

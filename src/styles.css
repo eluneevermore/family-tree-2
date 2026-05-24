@@ -334,6 +334,29 @@ button {
   background: #f8fafc;
 }
 
+.graph-rearrange-button {
+  position: absolute;
+  z-index: 12;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: rgb(255 255 255 / 94%);
+  color: #334155;
+  box-shadow: 0 12px 30px rgb(15 23 42 / 10%);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.graph-rearrange-button:hover {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
 .kinship-card {
   position: absolute;
   z-index: 12;
