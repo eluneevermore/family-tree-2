@@ -151,6 +151,7 @@ function renderGraphView(options: RenderGraphViewOptions): ReturnType<typeof ren
       document={options.document}
       focusPersonId={options.focusPersonId ?? 'me'}
       locale={options.locale ?? locales.en}
+      nodeWidth={options.nodeWidth ?? 172}
       selectedPersonId={options.selectedPersonId ?? null}
       onAddChild={options.onAddChild ?? vi.fn()}
       onAddParent={options.onAddParent ?? vi.fn()}

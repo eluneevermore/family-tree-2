@@ -21,6 +21,7 @@ export interface PersonToggleSummary {
 
 export interface PersonNodeData extends Record<string, unknown> {
   readonly person: PersonRecord;
+  readonly nodeWidth: number;
   readonly spouses: readonly SpouseSummary[];
   readonly personToggle?: PersonToggleSummary;
   readonly isSearchMatch: boolean;
@@ -83,7 +84,7 @@ export function PersonNode({ data }: NodeProps): ReactElement {
       onClick={() => nodeData.onSelectPerson(nodeData.person.id)}
       onMouseEnter={() => nodeData.onHoverPerson(nodeData.person.id)}
       onMouseLeave={() => nodeData.onHoverPerson(null)}
-      style={{ borderColor }}
+      style={{ borderColor, width: nodeData.nodeWidth }}
     >
       <Handle type="target" position={Position.Top} className="flow-handle" />
       <Handle type="source" position={Position.Bottom} className="flow-handle" />

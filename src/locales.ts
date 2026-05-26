@@ -2,6 +2,10 @@ import { Language, ParseDiagnostic } from './types';
 
 export interface LocaleStrings {
   readonly appTitle: string;
+  readonly familyTree: string;
+  readonly createFamilyTree: string;
+  readonly newFamilyTreeName: string;
+  readonly nodeWidth: string;
   readonly searchPeople: string;
   readonly searchSuggestions: string;
   readonly clearSearch: string;
@@ -56,6 +60,10 @@ export interface LocaleStrings {
 export const locales: Record<Language, LocaleStrings> = {
   en: {
     appTitle: 'Family Tree v2',
+    familyTree: 'Family tree',
+    createFamilyTree: 'Create new tree...',
+    newFamilyTreeName: 'New family tree name',
+    nodeWidth: 'Node width',
     searchPeople: 'Search people',
     searchSuggestions: 'Search suggestions',
     clearSearch: 'Clear search',
@@ -108,6 +116,10 @@ export const locales: Record<Language, LocaleStrings> = {
   },
   vi: {
     appTitle: 'Gia phả v2',
+    familyTree: 'Gia phả',
+    createFamilyTree: 'Tạo gia phả mới...',
+    newFamilyTreeName: 'Tên gia phả mới',
+    nodeWidth: 'Độ rộng nút',
     searchPeople: 'Tìm người',
     searchSuggestions: 'Gợi ý tìm kiếm',
     clearSearch: 'Xoá tìm kiếm',

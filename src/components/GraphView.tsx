@@ -15,7 +15,7 @@ import {
 } from '@xyflow/react';
 import { buildTreeLayout } from '../domain/layout';
 import { findMatchingPersonIds } from '../domain/visibility';
-import { PERSON_NODE_HEIGHT, PERSON_NODE_WIDTH } from '../constants';
+import { PERSON_NODE_HEIGHT } from '../constants';
 import { suggestPeople } from '../services/suggestions';
 import {
   FamilyTreeDocument,
@@ -31,6 +31,7 @@ interface GraphViewProps {
   readonly document: FamilyTreeDocument;
   readonly focusPersonId: string | null;
   readonly locale: LocaleStrings;
+  readonly nodeWidth: number;
   readonly selectedPersonId: string | null;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
@@ -69,6 +70,7 @@ function GraphCanvas({
   document,
   focusPersonId,
   locale,
+  nodeWidth,
   selectedPersonId,
   collapsedFamilyIds,
   collapsedPersonIds,
@@ -98,6 +100,7 @@ function GraphCanvas({
     matchingPersonIds,
     selectedPersonId,
     locale,
+    nodeWidth,
     onAddChild,
     onAddParent,
     onAddSpouse,
@@ -111,6 +114,7 @@ function GraphCanvas({
     layout,
     locale,
     matchingPersonIds,
+    nodeWidth,
     onAddChild,
     onAddParent,
     onAddSpouse,
@@ -124,7 +128,7 @@ function GraphCanvas({
 
   useEffect(() => {
     let isCurrent = true;
-    buildTreeLayout(document, collapsedFamilyIds, focusPersonId, collapsedPersonIds).then((nextLayout) => {
+    buildTreeLayout(document, collapsedFamilyIds, focusPersonId, collapsedPersonIds, nodeWidth).then((nextLayout) => {
       if (isCurrent) {
         setLayout(nextLayout);
       }
@@ -133,7 +137,7 @@ function GraphCanvas({
     return () => {
       isCurrent = false;
     };
-  }, [document, collapsedFamilyIds, collapsedPersonIds, focusPersonId]);
+  }, [document, collapsedFamilyIds, collapsedPersonIds, focusPersonId, nodeWidth]);
 
   const focusPerson = useCallback((personId: string): void => {
     const node = reactFlow.getNode(personId);
@@ -141,11 +145,11 @@ function GraphCanvas({
       return;
     }
 
-    reactFlow.setCenter(node.position.x + PERSON_NODE_WIDTH / 2, node.position.y + PERSON_NODE_HEIGHT / 2, {
+    reactFlow.setCenter(node.position.x + nodeWidth / 2, node.position.y + PERSON_NODE_HEIGHT / 2, {
       duration: 350,
       zoom: 1.15
     });
-  }, [reactFlow]);
+  }, [nodeWidth, reactFlow]);
 
   useEffect(() => {
     setNodes((currentNodes) => {
@@ -280,6 +284,7 @@ function areGraphViewPropsEqual(previousProps: GraphViewProps, nextProps: GraphV
   return previousProps.document === nextProps.document
     && previousProps.focusPersonId === nextProps.focusPersonId
     && previousProps.locale === nextProps.locale
+    && previousProps.nodeWidth === nextProps.nodeWidth
     && previousProps.selectedPersonId === nextProps.selectedPersonId
     && previousProps.collapsedFamilyIds === nextProps.collapsedFamilyIds
     && previousProps.collapsedPersonIds === nextProps.collapsedPersonIds;
@@ -291,6 +296,7 @@ interface BuildFlowNodesOptions {
   readonly matchingPersonIds: ReadonlySet<string>;
   readonly selectedPersonId: string | null;
   readonly locale: LocaleStrings;
+  readonly nodeWidth: number;
   readonly onAddChild: (person: PersonRecord) => void;
   readonly onAddParent: (person: PersonRecord) => void;
   readonly onAddSpouse: (person: PersonRecord) => void;
@@ -307,6 +313,7 @@ function buildFlowNodes({
   matchingPersonIds,
   selectedPersonId,
   locale,
+  nodeWidth,
   onAddChild,
   onAddParent,
   onAddSpouse,
@@ -323,6 +330,7 @@ function buildFlowNodes({
     zIndex: 5,
     data: {
       person: layoutNode.person,
+      nodeWidth,
       spouses: buildSpouseSummaries(document, layoutNode.spouseShortcuts),
       personToggle: buildPersonToggleSummary(layoutNode.childLineToggle),
       isSearchMatch: matchingPersonIds.has(layoutNode.id),

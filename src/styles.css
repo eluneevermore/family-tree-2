@@ -63,6 +63,20 @@ button {
   color: #0f172a;
   font-size: 17px;
   line-height: 1.1;
+  white-space: nowrap;
+}
+
+.tree-select {
+  min-width: 150px;
+  max-width: 240px;
+  height: 34px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .search-suggestions {
@@ -503,10 +517,10 @@ button {
 }
 
 .kinship-footer {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  display: flex;
   gap: 12px;
   align-items: start;
+  justify-content: space-between;
   max-height: 170px;
   overflow: auto;
   border-top: 1px solid #edf2f7;
@@ -516,10 +530,22 @@ button {
 }
 
 .kinship-footer-muted {
-  display: flex;
   color: #64748b;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.kinship-footer-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  flex: 1;
+  min-width: 0;
+  gap: 12px;
+  align-items: start;
+}
+
+.kinship-footer-muted .kinship-footer-body {
+  display: block;
 }
 
 .kinship-footer-title {
@@ -542,6 +568,29 @@ button {
 
 .kinship-footer span {
   color: #1d4ed8;
+  font-weight: 800;
+}
+
+.node-width-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.node-width-control input {
+  width: 72px;
+  height: 28px;
+  border: 1px solid #dbe3ef;
+  border-radius: 7px;
+  padding: 3px 7px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -973,8 +1022,12 @@ button {
   }
 
   .kinship-footer {
-    grid-template-columns: minmax(0, 1fr);
     align-items: start;
+    gap: 5px;
+  }
+
+  .kinship-footer-body {
+    grid-template-columns: minmax(0, 1fr);
     gap: 5px;
   }
 

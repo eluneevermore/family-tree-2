@@ -33,12 +33,19 @@ f+daughter->overlapSon,overlapDaughter
 `;
 
 export const STORAGE_KEY = 'family-tree-v2-text';
+export const STORAGE_FAMILY_TREES_KEY = 'family-tree-v2-family-trees';
+export const STORAGE_SITE_CONFIGURATION_KEY = 'family-tree-v2-site-configuration';
 export const STORAGE_VIEW_MODE_KEY = 'family-tree-v2-view-mode';
 export const STORAGE_LANGUAGE_KEY = 'family-tree-v2-language';
 export const EXPORT_FILE_NAME = 'family-tree.family.txt';
 
+export const DEFAULT_FAMILY_TREE_NAME = 'Family Tree';
+export const NEW_TREE_TEXT = '# people\n\n# relationships\n';
 export const PERSON_NODE_WIDTH = 172;
 export const PERSON_NODE_HEIGHT = 88;
+export const MIN_PERSON_NODE_WIDTH = 140;
+export const MAX_PERSON_NODE_WIDTH = 320;
+export const PERSON_NODE_WIDTH_STEP = 8;
 export const PERSON_HORIZONTAL_GAP = 72;
 export const SPOUSE_HORIZONTAL_GAP = 32;
 export const GENERATION_VERTICAL_GAP = 190;

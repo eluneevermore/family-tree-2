@@ -3,16 +3,31 @@ import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Upload } 
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
 import { EditModal, type EditMode } from './components/EditModal';
-import { DEFAULT_TREE_TEXT, EXPORT_FILE_NAME, STORAGE_KEY, STORAGE_LANGUAGE_KEY, STORAGE_VIEW_MODE_KEY } from './constants';
+import {
+  DEFAULT_TREE_TEXT,
+  EXPORT_FILE_NAME,
+  MAX_PERSON_NODE_WIDTH,
+  MIN_PERSON_NODE_WIDTH,
+  NEW_TREE_TEXT,
+  PERSON_NODE_WIDTH_STEP,
+  STORAGE_LANGUAGE_KEY,
+  STORAGE_VIEW_MODE_KEY
+} from './constants';
 import { describeKinship } from './domain/kinship';
 import { findAncestorFamilyIds, findInitialFocusPersonId } from './domain/visibility';
 import { locales, type LocaleStrings } from './locales';
 import { applyFamilyTreeEdit } from './services/editor';
+import { FamilyTreeSummary, FamilyTreeStore, LocalStorageFamilyTreeStore } from './services/family-tree-store';
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './services/legacy-importer';
 import { parseFamilyTreeText } from './services/parser';
+import {
+  clampPersonNodeWidth,
+  LocalStorageSiteConfigurationStore
+} from './services/site-configuration-store';
 import { FamilyTreeDocument, FamilyTreeEdit, KinshipResult, Language, PersonRecord } from './types';
 
 type ViewMode = 'both' | 'text' | 'graph';
+type TextUpdate = string | ((currentText: string) => string);
 
 interface PendingEdit {
   readonly mode: EditMode;
@@ -26,8 +41,15 @@ interface GraphViewState {
   readonly collapsedPersonIds: ReadonlySet<string>;
 }
 
+interface FamilyTreeAppState {
+  readonly activeTreeId: string;
+  readonly trees: readonly FamilyTreeSummary[];
+  readonly text: string;
+}
+
 const PRIMARY_GRAPH_ID = 'graph-1';
 const SECONDARY_GRAPH_ID = 'graph-2';
+const CREATE_TREE_OPTION_VALUE = '__create_tree__';
 const KINSHIP_STATUS_LABEL = 'Kinship';
 const DEFAULT_TEXT_PANEL_WIDTH = 460;
 const MIN_TEXT_PANEL_WIDTH = 320;
@@ -39,7 +61,10 @@ type WorkspaceStyle = CSSProperties & {
 };
 
 function App(): ReactElement {
-  const [text, setText] = useState(() => localStorage.getItem(STORAGE_KEY) ?? DEFAULT_TREE_TEXT);
+  const familyTreeStore = useMemo(() => new LocalStorageFamilyTreeStore(localStorage), []);
+  const siteConfigurationStore = useMemo(() => new LocalStorageSiteConfigurationStore(localStorage), []);
+  const [familyTreeState, setFamilyTreeState] = useState(() => readInitialFamilyTreeState(familyTreeStore));
+  const [siteConfiguration, setSiteConfiguration] = useState(() => siteConfigurationStore.read());
   const [viewMode, setViewMode] = useState<ViewMode>(() => readViewMode());
   const [language, setLanguage] = useState<Language>(() => readLanguage());
   const [graphViews, setGraphViews] = useState<readonly GraphViewState[]>(() => [createGraphViewState(PRIMARY_GRAPH_ID, null)]);
@@ -48,6 +73,8 @@ function App(): ReactElement {
   const [textPanelWidth, setTextPanelWidth] = useState(DEFAULT_TEXT_PANEL_WIDTH);
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const text = familyTreeState.text;
+  const nodeWidth = siteConfiguration.personNodeWidth;
   const document = useMemo(() => parseFamilyTreeText(text), [text]);
   const locale = locales[language];
   const hasSplitGraphView = graphViews.length > 1;
@@ -56,8 +83,12 @@ function App(): ReactElement {
   }, [document, hoveredPersonId, language, selectedPersonId]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, text);
-  }, [text]);
+    familyTreeStore.saveTreeText(familyTreeState.activeTreeId, familyTreeState.text);
+  }, [familyTreeState.activeTreeId, familyTreeState.text, familyTreeStore]);
+
+  useEffect(() => {
+    siteConfigurationStore.save(siteConfiguration);
+  }, [siteConfiguration, siteConfigurationStore]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_VIEW_MODE_KEY, viewMode);
@@ -99,6 +130,13 @@ function App(): ReactElement {
     }));
   }, []);
 
+  const updateText = useCallback((update: TextUpdate): void => {
+    setFamilyTreeState((currentState) => ({
+      ...currentState,
+      text: typeof update === 'function' ? update(currentState.text) : update
+    }));
+  }, []);
+
   const handleToggleFamily = useCallback((graphViewId: string, familyId: string): void => {
     updateGraphView(graphViewId, (graphView) => ({
       ...graphView,
@@ -114,9 +152,9 @@ function App(): ReactElement {
   }, [updateGraphView]);
 
   const handleSubmitEdit = useCallback((edit: FamilyTreeEdit): void => {
-    setText((currentText) => applyFamilyTreeEdit(currentText, edit));
+    updateText((currentText) => applyFamilyTreeEdit(currentText, edit));
     setPendingEdit(null);
-  }, []);
+  }, [updateText]);
 
   const handleFocusPerson = useCallback((graphViewId: string, personId: string): void => {
     updateGraphView(graphViewId, (graphView) => ({ ...graphView, focusPersonId: personId }));
@@ -162,6 +200,52 @@ function App(): ReactElement {
       ];
     });
   }, [document]);
+
+  const resetGraphContext = useCallback((focusPersonId: string | null): void => {
+    setGraphViews([createGraphViewState(PRIMARY_GRAPH_ID, focusPersonId)]);
+    setSelectedPersonId(null);
+    setHoveredPersonId(null);
+  }, []);
+
+  const handleFamilyTreeSelection = useCallback((event: ChangeEvent<HTMLSelectElement>): void => {
+    const selectedTreeId = event.target.value;
+    if (selectedTreeId === CREATE_TREE_OPTION_VALUE) {
+      event.target.value = familyTreeState.activeTreeId;
+      const name = window.prompt(locale.newFamilyTreeName)?.trim();
+      if (!name) {
+        return;
+      }
+
+      const tree = familyTreeStore.createTree(name, NEW_TREE_TEXT);
+      setFamilyTreeState({
+        activeTreeId: tree.id,
+        trees: familyTreeStore.listTrees(),
+        text: tree.text
+      });
+      resetGraphContext(null);
+      return;
+    }
+
+    const tree = familyTreeStore.readTree(selectedTreeId);
+    if (!tree) {
+      return;
+    }
+
+    familyTreeStore.setActiveTreeId(tree.id);
+    setFamilyTreeState({
+      activeTreeId: tree.id,
+      trees: familyTreeStore.listTrees(),
+      text: tree.text
+    });
+    resetGraphContext(null);
+  }, [familyTreeState.activeTreeId, familyTreeStore, locale.newFamilyTreeName, resetGraphContext]);
+
+  const handleNodeWidthChange = useCallback((nextWidth: number): void => {
+    setSiteConfiguration((currentConfiguration) => ({
+      ...currentConfiguration,
+      personNodeWidth: clampPersonNodeWidth(nextWidth)
+    }));
+  }, []);
 
   const handleEditorResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
     if (viewMode !== 'both') {
@@ -211,7 +295,7 @@ function App(): ReactElement {
     const reader = new FileReader();
     reader.onload = () => {
       const result = String(reader.result ?? '');
-      setText(looksLikeLegacyFamilyText(result) ? importLegacyFamilyText(result) : result);
+      updateText(looksLikeLegacyFamilyText(result) ? importLegacyFamilyText(result) : result);
       event.target.value = '';
     };
     reader.readAsText(file);
@@ -227,6 +311,17 @@ function App(): ReactElement {
         <div className="brand">
           <GitBranch size={20} />
           <h1>{locale.appTitle}</h1>
+          <select
+            aria-label={locale.familyTree}
+            className="tree-select"
+            onChange={handleFamilyTreeSelection}
+            value={familyTreeState.activeTreeId}
+          >
+            {familyTreeState.trees.map((tree) => (
+              <option key={tree.id} value={tree.id}>{tree.name}</option>
+            ))}
+            <option value={CREATE_TREE_OPTION_VALUE}>{locale.createFamilyTree}</option>
+          </select>
         </div>
 
         <div className="view-switcher" aria-label={locale.viewMode}>
@@ -283,7 +378,7 @@ function App(): ReactElement {
 
       <main className="workspace" data-testid="workspace" style={workspaceStyle}>
         {viewMode !== 'graph' ? (
-          <TextEditor diagnostics={document.diagnostics} document={document} locale={locale} text={text} onTextChange={setText} />
+          <TextEditor diagnostics={document.diagnostics} document={document} locale={locale} text={text} onTextChange={updateText} />
         ) : null}
 
         {viewMode === 'both' ? (
@@ -308,6 +403,7 @@ function App(): ReactElement {
                     document={document}
                     focusPersonId={graphView.focusPersonId}
                     locale={locale}
+                    nodeWidth={nodeWidth}
                     selectedPersonId={selectedPersonId}
                     onAddChild={(person) => setPendingEdit({ mode: 'add-child', person })}
                     onAddParent={(person) => setPendingEdit({ mode: 'add-parent', person })}
@@ -323,7 +419,13 @@ function App(): ReactElement {
                 </div>
               ))}
             </div>
-            <KinshipFooter document={document} kinship={kinship} locale={locale} />
+            <KinshipFooter
+              document={document}
+              kinship={kinship}
+              locale={locale}
+              nodeWidth={nodeWidth}
+              onNodeWidthChange={handleNodeWidthChange}
+            />
           </div>
         ) : null}
       </main>
@@ -348,8 +450,23 @@ function readViewMode(): ViewMode {
 }
 
 function readLanguage(): Language {
+  const queryLanguage = new URLSearchParams(window.location.search).get('lang')
+    ?? new URLSearchParams(window.location.search).get('language');
+  if (queryLanguage === 'en' || queryLanguage === 'vi') {
+    return queryLanguage;
+  }
+
   const storedValue = localStorage.getItem(STORAGE_LANGUAGE_KEY);
   return storedValue === 'vi' ? 'vi' : 'en';
+}
+
+function readInitialFamilyTreeState(familyTreeStore: FamilyTreeStore): FamilyTreeAppState {
+  const activeTree = familyTreeStore.ensureReady(DEFAULT_TREE_TEXT);
+  return {
+    activeTreeId: activeTree.id,
+    trees: familyTreeStore.listTrees(),
+    text: activeTree.text
+  };
 }
 
 function createGraphViewState(
@@ -378,37 +495,72 @@ interface KinshipFooterProps {
   readonly document: FamilyTreeDocument;
   readonly kinship: KinshipResult | null;
   readonly locale: LocaleStrings;
+  readonly nodeWidth: number;
+  readonly onNodeWidthChange: (width: number) => void;
 }
 
 function KinshipFooter({
   document,
   kinship,
-  locale
+  locale,
+  nodeWidth,
+  onNodeWidthChange
 }: KinshipFooterProps): ReactElement | null {
   if (kinship) {
     return (
       <footer className="kinship-footer" role="status" aria-label={KINSHIP_STATUS_LABEL}>
-        <div className="kinship-footer-title">{locale.relationship}</div>
-        <KinshipFooterLine
-          label={kinship.selectedToHovered}
-          locale={locale}
-          sourceName={document.people.get(kinship.selectedPersonId)?.name}
-          targetName={document.people.get(kinship.hoveredPersonId)?.name}
-        />
-        <KinshipFooterLine
-          label={kinship.hoveredToSelected}
-          locale={locale}
-          sourceName={document.people.get(kinship.hoveredPersonId)?.name}
-          targetName={document.people.get(kinship.selectedPersonId)?.name}
-        />
+        <div className="kinship-footer-body">
+          <div className="kinship-footer-title">{locale.relationship}</div>
+          <KinshipFooterLine
+            label={kinship.selectedToHovered}
+            locale={locale}
+            sourceName={document.people.get(kinship.selectedPersonId)?.name}
+            targetName={document.people.get(kinship.hoveredPersonId)?.name}
+          />
+          <KinshipFooterLine
+            label={kinship.hoveredToSelected}
+            locale={locale}
+            sourceName={document.people.get(kinship.hoveredPersonId)?.name}
+            targetName={document.people.get(kinship.selectedPersonId)?.name}
+          />
+        </div>
+        <NodeWidthControl locale={locale} nodeWidth={nodeWidth} onNodeWidthChange={onNodeWidthChange} />
       </footer>
     );
   }
 
   return (
     <footer className="kinship-footer kinship-footer-muted" role="status" aria-label={KINSHIP_STATUS_LABEL}>
-      {locale.relationshipHint}
+      <div className="kinship-footer-body">{locale.relationshipHint}</div>
+      <NodeWidthControl locale={locale} nodeWidth={nodeWidth} onNodeWidthChange={onNodeWidthChange} />
     </footer>
+  );
+}
+
+interface NodeWidthControlProps {
+  readonly locale: LocaleStrings;
+  readonly nodeWidth: number;
+  readonly onNodeWidthChange: (width: number) => void;
+}
+
+function NodeWidthControl({
+  locale,
+  nodeWidth,
+  onNodeWidthChange
+}: NodeWidthControlProps): ReactElement {
+  return (
+    <label className="node-width-control">
+      <span>{locale.nodeWidth}</span>
+      <input
+        aria-label={locale.nodeWidth}
+        max={MAX_PERSON_NODE_WIDTH}
+        min={MIN_PERSON_NODE_WIDTH}
+        onChange={(event) => onNodeWidthChange(Number(event.target.value))}
+        step={PERSON_NODE_WIDTH_STEP}
+        type="number"
+        value={nodeWidth}
+      />
+    </label>
   );
 }
 

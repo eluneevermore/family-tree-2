@@ -28,6 +28,7 @@ interface SlotLayoutOptions {
   readonly context: FocusedGraphContext;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
+  readonly personNodeWidth: number;
 }
 
 interface SlotPlacement {
@@ -41,7 +42,8 @@ export async function buildTreeLayout(
   document: FamilyTreeDocument,
   collapsedFamilyIds: ReadonlySet<string>,
   focusPersonId: string | null = null,
-  collapsedPersonIds: ReadonlySet<string> = new Set()
+  collapsedPersonIds: ReadonlySet<string> = new Set(),
+  personNodeWidth: number = PERSON_NODE_WIDTH
 ): Promise<TreeLayout> {
   const context = buildFocusedGraphContext(document, focusPersonId, collapsedFamilyIds, collapsedPersonIds);
   const generations = calculateFocusedGenerations(document, context);
@@ -52,7 +54,8 @@ export async function buildTreeLayout(
     generations,
     childOrder,
     collapsedFamilyIds,
-    collapsedPersonIds
+    collapsedPersonIds,
+    personNodeWidth
   });
   const edges = buildLayoutEdges(document, context, collapsedFamilyIds, collapsedPersonIds);
 
@@ -147,6 +150,7 @@ interface PlacePeopleOptions {
   readonly childOrder: ReadonlyMap<string, ChildOrder>;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
+  readonly personNodeWidth: number;
 }
 
 function placePeople({
@@ -155,14 +159,16 @@ function placePeople({
   generations,
   childOrder,
   collapsedFamilyIds,
-  collapsedPersonIds
+  collapsedPersonIds,
+  personNodeWidth
 }: PlacePeopleOptions): readonly LayoutPersonNode[] {
   const personOrder = buildPersonOrder(document);
   const placements = buildSlotPlacements({
     document,
     context,
     collapsedFamilyIds,
-    collapsedPersonIds
+    collapsedPersonIds,
+    personNodeWidth
   }, childOrder, personOrder, generations);
   const personIds = Array.from(context.mainPersonIds)
     .filter((personId) => document.people.has(personId))
@@ -185,7 +191,7 @@ function placePeople({
       id: person.id,
       person,
       generation,
-      x: getSlotX(placement.slot),
+      x: getSlotX(placement.slot, personNodeWidth),
       y: CANVAS_PADDING_Y + generation * GENERATION_VERTICAL_GAP,
       spouseShortcuts: buildLayoutSpouseShortcuts(document, context, person.id, collapsedFamilyIds),
       ...(childLineToggle ? { childLineToggle } : {})
@@ -337,8 +343,8 @@ function getVisibleChildren({ document, context }: SlotLayoutOptions, family: Fa
   });
 }
 
-function getSlotX(slot: number): number {
-  return CANVAS_PADDING_X + slot * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
+function getSlotX(slot: number, personNodeWidth: number): number {
+  return CANVAS_PADDING_X + slot * (personNodeWidth + PERSON_HORIZONTAL_GAP);
 }
 
 function buildLayoutSpouseShortcuts(

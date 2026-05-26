@@ -1,13 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { STORAGE_KEY } from './constants';
+import { DEFAULT_FAMILY_TREE_NAME, STORAGE_FAMILY_TREES_KEY, STORAGE_SITE_CONFIGURATION_KEY } from './constants';
 import { locales } from './locales';
 
 describe('App', () => {
   afterEach(() => {
     localStorage.clear();
+    window.history.pushState({}, '', '/');
+    vi.restoreAllMocks();
   });
 
   it('autosaves text edits to local storage', async () => {
@@ -19,8 +21,34 @@ describe('App', () => {
     await user.type(screen.getByLabelText('Family tree source'), 'a:Alpha,g=u');
 
     await waitFor(() => {
-      expect(localStorage.getItem(STORAGE_KEY)).toBe('a:Alpha,g=u');
+      expect(readStoredActiveTreeText()).toBe('a:Alpha,g=u');
     });
+  });
+
+  it('creates and switches between multiple family trees', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'prompt').mockReturnValue('Second Tree');
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'text' }));
+    await user.clear(screen.getByLabelText('Family tree source'));
+    await user.type(screen.getByLabelText('Family tree source'), 'a:Alpha,g=u');
+
+    await user.selectOptions(
+      screen.getByLabelText(locales.en.familyTree),
+      screen.getByRole('option', { name: locales.en.createFamilyTree })
+    );
+    expect(screen.getByLabelText('Family tree source')).toHaveValue('# people\n\n# relationships\n');
+
+    await user.clear(screen.getByLabelText('Family tree source'));
+    await user.type(screen.getByLabelText('Family tree source'), 'b:Beta,g=u');
+    await user.selectOptions(screen.getByLabelText(locales.en.familyTree), DEFAULT_FAMILY_TREE_NAME);
+
+    expect(screen.getByLabelText('Family tree source')).toHaveValue('a:Alpha,g=u');
+
+    await user.selectOptions(screen.getByLabelText(locales.en.familyTree), 'Second Tree');
+
+    expect(screen.getByLabelText('Family tree source')).toHaveValue('b:Beta,g=u');
   });
 
   it('shows parser diagnostics in the UI', async () => {
@@ -41,12 +69,35 @@ describe('App', () => {
     expect(screen.getByRole('option', { name: 'Tiếng Việt (Miền bắc)' })).toBeInTheDocument();
   });
 
+  it('uses querystring language as the initial language', () => {
+    window.history.pushState({}, '', '/?lang=vi');
+
+    render(<App />);
+
+    expect(screen.getByLabelText('Language')).toHaveValue('vi');
+    expect(screen.getByRole('heading', { name: locales.vi.appTitle })).toBeInTheDocument();
+  });
+
   it('keeps the graph footer visible before selection', async () => {
     render(<App />);
 
     const graphWorkspace = await screen.findByTestId('graph-workspace');
 
     expect(within(graphWorkspace).getByRole('status', { name: 'Kinship' })).toHaveTextContent(locales.en.relationshipHint);
+  });
+
+  it('updates and persists graph node width from the graph footer', async () => {
+    render(<App />);
+
+    const graphWorkspace = await screen.findByTestId('graph-workspace');
+    fireEvent.change(within(graphWorkspace).getByLabelText(locales.en.nodeWidth), {
+      target: { value: '220' }
+    });
+
+    await waitFor(() => {
+      expect(localStorage.getItem(STORAGE_SITE_CONFIGURATION_KEY)).toContain('"personNodeWidth":220');
+    });
+    expect(await screen.findByTestId('person-node-f')).toHaveStyle({ width: '220px' });
   });
 
   it('resizes the editor panel in combined view', async () => {
@@ -99,3 +150,16 @@ describe('App', () => {
     expect(within(secondGraphView).queryByText('father')).not.toBeInTheDocument();
   });
 });
+
+function readStoredActiveTreeText(): string | null {
+  const storedValue = localStorage.getItem(STORAGE_FAMILY_TREES_KEY);
+  if (!storedValue) {
+    return null;
+  }
+
+  const parsedValue = JSON.parse(storedValue) as {
+    readonly activeTreeId?: string;
+    readonly trees?: readonly { readonly id: string; readonly text: string }[];
+  };
+  return parsedValue.trees?.find((tree) => tree.id === parsedValue.activeTreeId)?.text ?? null;
+}
