@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, FileText } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileText, HelpCircle, X } from 'lucide-react';
 import { KeyboardEvent, ReactElement, useMemo, useRef, useState } from 'react';
 import { LocaleStrings } from '../locales';
 import { getCurrentDslIdToken, replaceCurrentDslIdToken, suggestPeople } from '../services/suggestions';
@@ -16,6 +16,7 @@ export function TextEditor({ text, document, diagnostics, locale, onTextChange }
   const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [caretPosition, setCaretPosition] = useState(0);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const token = useMemo(() => getCurrentDslIdToken(text, caretPosition), [caretPosition, text]);
   const suggestions = useMemo(() => suggestPeople(document, token?.query ?? ''), [document, token?.query]);
 
@@ -56,6 +57,15 @@ export function TextEditor({ text, document, diagnostics, locale, onTextChange }
         <div className="panel-title">
           <FileText size={16} />
           <span>{locale.compactDsl}</span>
+          <button
+            aria-label={locale.dslHelp}
+            className="dsl-help-button"
+            onClick={() => setIsLegendOpen(true)}
+            title={locale.dslHelp}
+            type="button"
+          >
+            <HelpCircle size={15} />
+          </button>
         </div>
         <div className={hasErrors ? 'status-pill status-error' : 'status-pill status-ok'}>
           {hasErrors ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
@@ -103,6 +113,53 @@ export function TextEditor({ text, document, diagnostics, locale, onTextChange }
           ))
         )}
       </div>
+
+      {isLegendOpen ? (
+        <DslLegendDialog locale={locale} onClose={() => setIsLegendOpen(false)} />
+      ) : null}
     </section>
+  );
+}
+
+interface DslLegendDialogProps {
+  readonly locale: LocaleStrings;
+  readonly onClose: () => void;
+}
+
+function DslLegendDialog({ locale, onClose }: DslLegendDialogProps): ReactElement {
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section
+        aria-labelledby="dsl-legend-title"
+        aria-modal="true"
+        className="dsl-legend-dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="modal-heading">
+          <h2 id="dsl-legend-title">{locale.dslLegendTitle}</h2>
+          <button aria-label={locale.closeDialog} className="icon-button" onClick={onClose} type="button">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="dsl-legend-body">
+          <p>{locale.dslLegendIntro}</p>
+          <ul>
+            <li><code>{locale.dslLegendPersonLine}</code></li>
+            <li><code>{locale.dslLegendRelationshipLine}</code></li>
+            <li><code>{locale.dslLegendMarriageLine}</code></li>
+            <li><code>{locale.dslLegendSingleParentLine}</code></li>
+          </ul>
+          <p>{locale.dslLegendAliases}</p>
+          <p>{locale.dslLegendSpacing}</p>
+          <div className="dsl-legend-example">
+            <div>{locale.dslLegendExample}</div>
+            <pre>{`gf:John Smith,g=m,b=1950
+gm:Mary Smith,g=f,b=1952
+gf+gm->f,u`}</pre>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

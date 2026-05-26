@@ -66,6 +66,18 @@ describe('TextEditor', () => {
 
     expect(textarea).toHaveValue('dad+mo\nmom');
   });
+
+  it('opens a compact DSL legend from the heading help button', async () => {
+    const user = userEvent.setup();
+    render(<ControlledTextEditor document={parseFamilyTreeText('a:Alpha,g=u')} initialText="a:Alpha,g=u" />);
+
+    await user.click(screen.getByRole('button', { name: locales.en.dslHelp }));
+
+    expect(screen.getByRole('dialog', { name: locales.en.dslLegendTitle })).toBeInTheDocument();
+    expect(screen.getByText(locales.en.dslLegendPersonLine)).toBeInTheDocument();
+    expect(screen.getByText(locales.en.dslLegendRelationshipLine)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: locales.en.dslLegendTitle })).toHaveTextContent('gf+gm->f,u');
+  });
 });
 
 interface ControlledTextEditorProps {

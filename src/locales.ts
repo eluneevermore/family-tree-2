@@ -17,6 +17,16 @@ export interface LocaleStrings {
   readonly splitGraphView: string;
   readonly closeSplitGraphView: string;
   readonly compactDsl: string;
+  readonly dslHelp: string;
+  readonly dslLegendTitle: string;
+  readonly dslLegendIntro: string;
+  readonly dslLegendPersonLine: string;
+  readonly dslLegendRelationshipLine: string;
+  readonly dslLegendMarriageLine: string;
+  readonly dslLegendSingleParentLine: string;
+  readonly dslLegendAliases: string;
+  readonly dslLegendSpacing: string;
+  readonly dslLegendExample: string;
   readonly valid: string;
   readonly needsFixes: string;
   readonly noDiagnostics: string;
@@ -75,6 +85,16 @@ export const locales: Record<Language, LocaleStrings> = {
     splitGraphView: 'Split graph view',
     closeSplitGraphView: 'Close split graph view',
     compactDsl: 'Compact DSL',
+    dslHelp: 'Show DSL legend',
+    dslLegendTitle: 'Compact DSL legend',
+    dslLegendIntro: 'Use short text lines to define people and parent-child relationships.',
+    dslLegendPersonLine: 'Person: <id>:<name>,g=m,b=1950,d=2020,n=note',
+    dslLegendRelationshipLine: 'Parents with children: father+mother->child1,child2',
+    dslLegendMarriageLine: 'Marriage without children: personA+personB',
+    dslLegendSingleParentLine: 'Single parent: parent->child1,child2',
+    dslLegendAliases: 'Aliases: g=m/f/o/u, b=birth year, d=death year, n=note.',
+    dslLegendSpacing: 'Spaces around :, +, ->, and , are allowed. Children stay in listed order when birth years are missing.',
+    dslLegendExample: 'Example',
     valid: 'Valid',
     needsFixes: 'Needs fixes',
     noDiagnostics: 'No parser diagnostics.',
@@ -131,6 +151,16 @@ export const locales: Record<Language, LocaleStrings> = {
     splitGraphView: 'Chia đôi đồ thị',
     closeSplitGraphView: 'Đóng đồ thị thứ hai',
     compactDsl: 'DSL rút gọn',
+    dslHelp: 'Hiện chú giải DSL',
+    dslLegendTitle: 'Chú giải DSL rút gọn',
+    dslLegendIntro: 'Dùng các dòng văn bản ngắn để khai báo người và quan hệ bố/mẹ-con.',
+    dslLegendPersonLine: 'Người: <mã>:<tên>,g=m,b=1950,d=2020,n=ghi chú',
+    dslLegendRelationshipLine: 'Bố mẹ và con: bố+mẹ->con1,con2',
+    dslLegendMarriageLine: 'Kết hôn chưa có con: ngườiA+ngườiB',
+    dslLegendSingleParentLine: 'Bố/mẹ đơn thân: bố_mẹ->con1,con2',
+    dslLegendAliases: 'Viết tắt: g=m/f/o/u, b=năm sinh, d=năm mất, n=ghi chú.',
+    dslLegendSpacing: 'Có thể thêm khoảng trắng quanh :, +, ->, và ,. Nếu thiếu năm sinh, thứ tự con theo dòng quan hệ.',
+    dslLegendExample: 'Ví dụ',
     valid: 'Hợp lệ',
     needsFixes: 'Cần sửa',
     noDiagnostics: 'Không có cảnh báo cú pháp.',
