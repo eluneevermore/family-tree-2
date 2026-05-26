@@ -23,6 +23,20 @@ interface ChildOrder {
   readonly siblingIndex: number;
 }
 
+interface SlotLayoutOptions {
+  readonly document: FamilyTreeDocument;
+  readonly context: FocusedGraphContext;
+  readonly collapsedFamilyIds: ReadonlySet<string>;
+  readonly collapsedPersonIds: ReadonlySet<string>;
+}
+
+interface SlotPlacement {
+  readonly slot: number;
+  readonly span: number;
+}
+
+const MIN_SUBTREE_SPAN = 1;
+
 export async function buildTreeLayout(
   document: FamilyTreeDocument,
   collapsedFamilyIds: ReadonlySet<string>,
@@ -144,41 +158,187 @@ function placePeople({
   collapsedPersonIds
 }: PlacePeopleOptions): readonly LayoutPersonNode[] {
   const personOrder = buildPersonOrder(document);
-  const rows = new Map<number, string[]>();
-  context.mainPersonIds.forEach((personId) => {
-    if (!document.people.has(personId)) {
+  const placements = buildSlotPlacements({
+    document,
+    context,
+    collapsedFamilyIds,
+    collapsedPersonIds
+  }, childOrder, personOrder, generations);
+  const personIds = Array.from(context.mainPersonIds)
+    .filter((personId) => document.people.has(personId))
+    .sort((firstId, secondId) => {
+      return compareOptionalNumber(generations.get(firstId), generations.get(secondId))
+        || compareOptionalNumber(placements.get(firstId)?.slot, placements.get(secondId)?.slot)
+        || comparePeople(document, firstId, secondId, childOrder, personOrder);
+    });
+
+  return personIds.flatMap((personId) => {
+    const person = document.people.get(personId);
+    const placement = placements.get(personId);
+    if (!person || !placement) {
+      return [];
+    }
+
+    const generation = generations.get(person.id) ?? 0;
+    const childLineToggle = buildChildLineToggle(document, context, person.id, collapsedPersonIds);
+    return [{
+      id: person.id,
+      person,
+      generation,
+      x: getSlotX(placement.slot),
+      y: CANVAS_PADDING_Y + generation * GENERATION_VERTICAL_GAP,
+      spouseShortcuts: buildLayoutSpouseShortcuts(document, context, person.id, collapsedFamilyIds),
+      ...(childLineToggle ? { childLineToggle } : {})
+    }];
+  });
+}
+
+function buildSlotPlacements(
+  options: SlotLayoutOptions,
+  childOrder: ReadonlyMap<string, ChildOrder>,
+  personOrder: ReadonlyMap<string, number>,
+  generations: ReadonlyMap<string, number>
+): ReadonlyMap<string, SlotPlacement> {
+  const placements = new Map<string, SlotPlacement>();
+  const spanMemo = new Map<string, number>();
+  const rootIds = getRootPersonIds(options, childOrder, personOrder, generations);
+  const visibleIds = rootIds.length > 0 ? rootIds : getSortedVisiblePersonIds(options, childOrder, personOrder, generations);
+  let nextSlot = 0;
+  visibleIds.forEach((personId) => {
+    if (placements.has(personId)) {
       return;
     }
 
-    const generation = generations.get(personId) ?? 0;
-    rows.set(generation, [...(rows.get(generation) ?? []), personId]);
+    const span = calculateSubtreeSpan(options, personId, spanMemo, new Set<string>());
+    placeSubtree(options, personId, nextSlot, placements, spanMemo, new Set<string>());
+    nextSlot += span;
   });
 
-  return Array.from(rows.entries()).flatMap(([generation, personIds]) => {
-    return [...personIds].sort((firstId, secondId) => comparePeople(
-      document,
-      firstId,
-      secondId,
-      childOrder,
-      personOrder
-    )).map((personId, index) => {
-      const person = document.people.get(personId);
-      if (!person) {
-        return null;
-      }
+  getSortedVisiblePersonIds(options, childOrder, personOrder, generations).forEach((personId) => {
+    if (placements.has(personId)) {
+      return;
+    }
 
-      const childLineToggle = buildChildLineToggle(document, context, person.id, collapsedPersonIds);
-      return {
-        id: person.id,
-        person,
-        generation,
-        x: CANVAS_PADDING_X + index * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP),
-        y: CANVAS_PADDING_Y + generation * GENERATION_VERTICAL_GAP,
-        spouseShortcuts: buildLayoutSpouseShortcuts(document, context, person.id, collapsedFamilyIds),
-        ...(childLineToggle ? { childLineToggle } : {})
-      };
-    }).filter((node): node is LayoutPersonNode => node !== null);
+    const span = calculateSubtreeSpan(options, personId, spanMemo, new Set<string>());
+    placeSubtree(options, personId, nextSlot, placements, spanMemo, new Set<string>());
+    nextSlot += span;
   });
+
+  return placements;
+}
+
+function getRootPersonIds(
+  options: SlotLayoutOptions,
+  childOrder: ReadonlyMap<string, ChildOrder>,
+  personOrder: ReadonlyMap<string, number>,
+  generations: ReadonlyMap<string, number>
+): readonly string[] {
+  return getSortedVisiblePersonIds(options, childOrder, personOrder, generations).filter((personId) => {
+    return !hasVisibleMainParent(options, personId);
+  });
+}
+
+function getSortedVisiblePersonIds(
+  { document, context }: SlotLayoutOptions,
+  childOrder: ReadonlyMap<string, ChildOrder>,
+  personOrder: ReadonlyMap<string, number>,
+  generations: ReadonlyMap<string, number>
+): readonly string[] {
+  return Array.from(context.mainPersonIds)
+    .filter((personId) => document.people.has(personId))
+    .sort((firstId, secondId) => {
+      return compareOptionalNumber(generations.get(firstId), generations.get(secondId))
+        || comparePeople(document, firstId, secondId, childOrder, personOrder);
+    });
+}
+
+function hasVisibleMainParent({ document, context }: SlotLayoutOptions, personId: string): boolean {
+  return Array.from(document.families.values()).some((family) => {
+    return context.visibleFamilyIds.has(family.id)
+      && family.children.includes(personId)
+      && family.parents.some((parentId) => context.mainPersonIds.has(parentId));
+  });
+}
+
+function calculateSubtreeSpan(
+  options: SlotLayoutOptions,
+  personId: string,
+  spanMemo: Map<string, number>,
+  visiting: Set<string>
+): number {
+  const memoizedSpan = spanMemo.get(personId);
+  if (memoizedSpan !== undefined) {
+    return memoizedSpan;
+  }
+
+  if (visiting.has(personId)) {
+    return MIN_SUBTREE_SPAN;
+  }
+
+  visiting.add(personId);
+  const childSpan = getVisibleChildFamiliesForPlacement(options, personId).reduce((familyTotal, family) => {
+    return familyTotal + getVisibleChildren(options, family).reduce((childrenTotal, childId) => {
+      return childrenTotal + calculateSubtreeSpan(options, childId, spanMemo, visiting);
+    }, 0);
+  }, 0);
+  visiting.delete(personId);
+
+  const span = Math.max(MIN_SUBTREE_SPAN, childSpan);
+  spanMemo.set(personId, span);
+  return span;
+}
+
+function placeSubtree(
+  options: SlotLayoutOptions,
+  personId: string,
+  slot: number,
+  placements: Map<string, SlotPlacement>,
+  spanMemo: Map<string, number>,
+  visiting: Set<string>
+): void {
+  if (visiting.has(personId)) {
+    return;
+  }
+
+  const span = calculateSubtreeSpan(options, personId, spanMemo, new Set<string>());
+  if (!placements.has(personId)) {
+    placements.set(personId, { slot, span });
+  }
+
+  visiting.add(personId);
+  let nextSlot = slot;
+  getVisibleChildFamiliesForPlacement(options, personId).forEach((family) => {
+    getVisibleChildren(options, family).forEach((childId) => {
+      const childSpan = calculateSubtreeSpan(options, childId, spanMemo, new Set<string>());
+      placeSubtree(options, childId, nextSlot, placements, spanMemo, visiting);
+      nextSlot += childSpan;
+    });
+  });
+  visiting.delete(personId);
+}
+
+function getVisibleChildFamiliesForPlacement(options: SlotLayoutOptions, personId: string): readonly FamilyRecord[] {
+  const { document, context, collapsedFamilyIds, collapsedPersonIds } = options;
+  return Array.from(document.families.values()).filter((family) => {
+    return context.visibleFamilyIds.has(family.id)
+      && getPlacementParentId(family, context) === personId
+      && isFamilyChildLineVisible(family, collapsedFamilyIds, collapsedPersonIds)
+      && getVisibleChildren(options, family).length > 0;
+  });
+}
+
+function getPlacementParentId(family: FamilyRecord, context: FocusedGraphContext): string | null {
+  return family.parents.find((parentId) => context.mainPersonIds.has(parentId)) ?? null;
+}
+
+function getVisibleChildren({ document, context }: SlotLayoutOptions, family: FamilyRecord): readonly string[] {
+  return sortChildrenByAge(document, family).filter((childId) => {
+    return context.mainPersonIds.has(childId) && !context.hiddenPersonIds.has(childId);
+  });
+}
+
+function getSlotX(slot: number): number {
+  return CANVAS_PADDING_X + slot * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
 }
 
 function buildLayoutSpouseShortcuts(

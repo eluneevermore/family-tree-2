@@ -3,6 +3,8 @@ import { Language, ParseDiagnostic } from './types';
 export interface LocaleStrings {
   readonly appTitle: string;
   readonly searchPeople: string;
+  readonly searchSuggestions: string;
+  readonly clearSearch: string;
   readonly viewMode: string;
   readonly import: string;
   readonly export: string;
@@ -52,6 +54,8 @@ export const locales: Record<Language, LocaleStrings> = {
   en: {
     appTitle: 'Family Tree v2',
     searchPeople: 'Search people',
+    searchSuggestions: 'Search suggestions',
+    clearSearch: 'Clear search',
     viewMode: 'View mode',
     import: 'Import',
     export: 'Export',
@@ -99,6 +103,8 @@ export const locales: Record<Language, LocaleStrings> = {
   vi: {
     appTitle: 'Gia phả v2',
     searchPeople: 'Tìm người',
+    searchSuggestions: 'Gợi ý tìm kiếm',
+    clearSearch: 'Xoá tìm kiếm',
     viewMode: 'Chế độ xem',
     import: 'Nhập',
     export: 'Xuất',

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.clear());
@@ -17,10 +17,17 @@ p->c
   await expect(page.getByTestId('person-node-c')).toContainText('Child');
 });
 
-test('search highlights and focuses a person', async ({ page }) => {
+test('search suggests people before focusing a selected person', async ({ page }) => {
   await page.goto('/');
-  await page.getByLabel('Search people').fill('Chloe');
+  await expect(page.getByTestId('person-node-f')).toBeVisible();
+  await page.getByLabel('Search people').fill('c');
 
+  await expect(page.getByRole('listbox', { name: 'Search suggestions' })).toBeVisible();
+  await expect(page.getByTestId('person-node-f')).toBeVisible();
+  const settledTransform = await waitForStableViewportTransform(page);
+  await page.getByLabel('Search people').fill('ch');
+  await expect(page.locator('.react-flow__viewport')).toHaveCSS('transform', settledTransform);
+  await page.getByTestId('search-suggestion-sis').click();
   await expect(page.getByTestId('person-node-sis')).toContainText('Chloe Smith');
 });
 
@@ -53,11 +60,11 @@ dad+mom->me
   await page.getByRole('button', { name: 'graph' }).click();
 
   await page.getByTestId('person-node-me').click();
-  await page.getByTestId('person-node-dad').hover();
+  await page.getByTestId('person-node-dad').locator('.person-main').hover();
   await expect(page.getByText('father')).toBeVisible();
 
   await page.getByLabel('Language').selectOption('vi');
-  await page.getByTestId('person-node-dad').hover();
+  await page.getByTestId('person-node-dad').locator('.person-main').hover();
   await expect(page.getByText('bố')).toBeVisible();
 });
 
@@ -134,6 +141,7 @@ a+s2->c3,c4
 `);
   await page.getByRole('button', { name: 'graph' }).click();
   await page.getByLabel('Search people').fill('Alpha');
+  await page.getByTestId('search-suggestion-a').click();
 
   const firstSpouseItem = page.getByTestId('spouse-item-couple:a+s1');
   const secondSpouseItem = page.getByTestId('spouse-item-couple:a+s2');
@@ -167,6 +175,7 @@ beta:Beta Person,g=f
 `);
   await page.getByRole('button', { name: 'graph' }).click();
   await page.getByLabel('Search people').fill('Alpha');
+  await page.getByTestId('search-suggestion-a').click();
   await page.getByTestId('person-actions-a').click();
   await page.getByTestId('person-action-add-spouse-a').click();
   await page.getByRole('button', { name: 'Existing' }).click();
@@ -174,3 +183,23 @@ beta:Beta Person,g=f
 
   await expect(page.getByRole('button', { name: /Beta Person beta/ })).toBeVisible();
 });
+
+async function waitForStableViewportTransform(page: Page): Promise<string> {
+  let previousTransform = await getViewportTransform(page);
+  await expect.poll(async () => {
+    const currentTransform = await getViewportTransform(page);
+    if (currentTransform === previousTransform) {
+      return currentTransform;
+    }
+
+    previousTransform = currentTransform;
+    return '';
+  }).not.toBe('');
+  return previousTransform;
+}
+
+async function getViewportTransform(page: Page): Promise<string> {
+  return page.locator('.react-flow__viewport').evaluate((element) => {
+    return window.getComputedStyle(element).transform;
+  });
+}

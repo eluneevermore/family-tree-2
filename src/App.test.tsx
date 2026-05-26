@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import App from './App';
 import { STORAGE_KEY } from './constants';
+import { locales } from './locales';
 
 describe('App', () => {
   afterEach(() => {
@@ -31,5 +32,24 @@ describe('App', () => {
     await user.type(screen.getByLabelText('Family tree source'), 'a:Alpha,g=u\na->missing');
 
     expect(await screen.findByText('Unknown person id "missing".')).toBeInTheDocument();
+  });
+
+  it('shows search suggestions without changing focus until a person is selected', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(await screen.findByTestId('person-node-f')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Search people'), 'c');
+
+    expect(await screen.findByRole('listbox', { name: locales.en.searchSuggestions })).toBeInTheDocument();
+    expect(screen.getByTestId('person-node-f')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('search-suggestion-uncleInLaw'));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('person-node-f')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('person-node-uncleInLaw')).toBeInTheDocument();
   });
 });

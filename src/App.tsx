@@ -1,10 +1,10 @@
 import { ChangeEvent, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, Search, Upload } from 'lucide-react';
+import { Download, GitBranch, PanelLeftClose, PanelLeftOpen, Upload } from 'lucide-react';
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
 import { EditModal, type EditMode } from './components/EditModal';
 import { DEFAULT_TREE_TEXT, EXPORT_FILE_NAME, STORAGE_KEY, STORAGE_LANGUAGE_KEY, STORAGE_VIEW_MODE_KEY } from './constants';
-import { findAncestorFamilyIds, findInitialFocusPersonId, findMatchingPersonIds } from './domain/visibility';
+import { findAncestorFamilyIds, findInitialFocusPersonId } from './domain/visibility';
 import { locales } from './locales';
 import { applyFamilyTreeEdit } from './services/editor';
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './services/legacy-importer';
@@ -23,7 +23,6 @@ function App(): ReactElement {
   const [viewMode, setViewMode] = useState<ViewMode>(() => readViewMode());
   const [language, setLanguage] = useState<Language>(() => readLanguage());
   const [focusPersonId, setFocusPersonId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [collapsedFamilyIds, setCollapsedFamilyIds] = useState<ReadonlySet<string>>(new Set());
   const [collapsedPersonIds, setCollapsedPersonIds] = useState<ReadonlySet<string>>(new Set());
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
@@ -51,18 +50,6 @@ function App(): ReactElement {
     setFocusPersonId(findInitialFocusPersonId(document));
   }, [document, focusPersonId]);
 
-  useEffect(() => {
-    const firstMatch = findMatchingPersonIds(document, searchQuery)[0];
-    if (!firstMatch) {
-      return;
-    }
-
-    const ancestors = findAncestorFamilyIds(document, firstMatch);
-    setFocusPersonId(firstMatch);
-    setCollapsedFamilyIds((previousIds) => removeIds(previousIds, ancestors));
-    setCollapsedPersonIds((previousIds) => removeIds(previousIds, collectParentIds(document, ancestors)));
-  }, [document, searchQuery]);
-
   const handleToggleFamily = useCallback((familyId: string): void => {
     setCollapsedFamilyIds((previousIds) => toggleId(previousIds, familyId));
   }, []);
@@ -75,6 +62,13 @@ function App(): ReactElement {
     setText((currentText) => applyFamilyTreeEdit(currentText, edit));
     setPendingEdit(null);
   }, []);
+
+  const handleRevealPerson = useCallback((personId: string): void => {
+    const ancestors = findAncestorFamilyIds(document, personId);
+    setFocusPersonId(personId);
+    setCollapsedFamilyIds((previousIds) => removeIds(previousIds, ancestors));
+    setCollapsedPersonIds((previousIds) => removeIds(previousIds, collectParentIds(document, ancestors)));
+  }, [document]);
 
   function handleDownload(): void {
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -109,16 +103,6 @@ function App(): ReactElement {
           <GitBranch size={20} />
           <h1>{locale.appTitle}</h1>
         </div>
-
-        <label className="header-search">
-          <Search size={16} />
-          <input
-            aria-label="Search people"
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder={locale.searchPeople}
-            value={searchQuery}
-          />
-        </label>
 
         <div className="view-switcher" aria-label={locale.viewMode}>
           {(['both', 'text', 'graph'] as const).map((mode) => (
@@ -178,9 +162,9 @@ function App(): ReactElement {
             onAddParent={(person) => setPendingEdit({ mode: 'add-parent', person })}
             onAddSpouse={(person) => setPendingEdit({ mode: 'add-spouse', person })}
             onFocusPerson={setFocusPersonId}
+            onRevealPerson={handleRevealPerson}
             onToggleFamily={handleToggleFamily}
             onTogglePerson={handleTogglePerson}
-            searchQuery={searchQuery}
           />
         ) : null}
       </main>

@@ -32,9 +32,9 @@ describe('GraphView', () => {
         onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
         onToggleFamily={vi.fn()}
         onTogglePerson={vi.fn()}
-        searchQuery=""
       />
     );
 
@@ -59,9 +59,9 @@ describe('GraphView', () => {
         onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
         onToggleFamily={vi.fn()}
         onTogglePerson={vi.fn()}
-        searchQuery=""
       />
     );
 
@@ -86,9 +86,9 @@ describe('GraphView', () => {
         onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
         onToggleFamily={vi.fn()}
         onTogglePerson={vi.fn()}
-        searchQuery=""
       />
     );
 
@@ -113,9 +113,9 @@ describe('GraphView', () => {
         onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={onFocusPerson}
+        onRevealPerson={vi.fn()}
         onToggleFamily={onToggleFamily}
         onTogglePerson={onTogglePerson}
-        searchQuery=""
       />
     );
 
@@ -145,9 +145,9 @@ describe('GraphView', () => {
         onAddParent={vi.fn()}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
         onToggleFamily={vi.fn()}
         onTogglePerson={vi.fn()}
-        searchQuery=""
       />
     );
 
@@ -171,9 +171,9 @@ describe('GraphView', () => {
         onAddParent={onAddParent}
         onAddSpouse={vi.fn()}
         onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
         onToggleFamily={vi.fn()}
         onTogglePerson={vi.fn()}
-        searchQuery=""
       />
     );
 
@@ -186,5 +186,66 @@ describe('GraphView', () => {
     fireEvent.click(within(dadNode).getByTestId('person-action-add-parent-dad'));
 
     expect(onAddParent).toHaveBeenCalledWith(document.people.get('dad'));
+  });
+
+  it('clears selected person when the graph pane is clicked', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    const { container } = render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onRevealPerson={vi.fn()}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+      />
+    );
+
+    fireEvent.click(await screen.findByTestId('person-node-me'));
+    expect(await screen.findByText(locales.en.relationshipHint)).toBeInTheDocument();
+    fireEvent.click(container.querySelector('.react-flow__pane') as Element);
+
+    expect(screen.queryByText(locales.en.relationshipHint)).not.toBeInTheDocument();
+  });
+
+  it('keeps search local to the graph and supports clearing it', async () => {
+    const user = userEvent.setup();
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    const onRevealPerson = vi.fn();
+    render(
+      <GraphView
+        collapsedFamilyIds={new Set()}
+        collapsedPersonIds={new Set()}
+        document={document}
+        focusPersonId="me"
+        language="en"
+        locale={locales.en}
+        onAddChild={vi.fn()}
+        onAddParent={vi.fn()}
+        onAddSpouse={vi.fn()}
+        onFocusPerson={vi.fn()}
+        onRevealPerson={onRevealPerson}
+        onToggleFamily={vi.fn()}
+        onTogglePerson={vi.fn()}
+      />
+    );
+
+    await user.type(screen.getByLabelText('Search people'), 'mo');
+
+    expect(await screen.findByRole('listbox', { name: locales.en.searchSuggestions })).toBeInTheDocument();
+    await user.click(screen.getByTestId('search-suggestion-mom'));
+    expect(onRevealPerson).toHaveBeenCalledWith('mom');
+
+    await user.click(screen.getByRole('button', { name: locales.en.clearSearch }));
+
+    expect(screen.getByLabelText('Search people')).toHaveValue('');
+    expect(screen.queryByRole('listbox', { name: locales.en.searchSuggestions })).not.toBeInTheDocument();
   });
 });

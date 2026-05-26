@@ -41,7 +41,7 @@ button {
 
 .app-header {
   display: grid;
-  grid-template-columns: minmax(180px, 260px) minmax(220px, 1fr) auto auto;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
   gap: 14px;
   align-items: center;
   min-height: 60px;
@@ -65,26 +65,53 @@ button {
   line-height: 1.1;
 }
 
-.header-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: min(440px, 100%);
-  min-width: 0;
-  padding: 8px 11px;
-  border: 1px solid #dbe3ef;
+.search-suggestions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #bfdbfe;
   border-radius: 8px;
-  background: #f8fafc;
-  color: #64748b;
+  background: #ffffff;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
 }
 
-.header-search input {
-  width: 100%;
-  min-width: 0;
+.search-suggestions button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border: 0;
-  outline: 0;
-  background: transparent;
+  border-bottom: 1px solid #edf2f7;
+  padding: 9px 11px;
+  background: #ffffff;
   color: #0f172a;
+  font-size: 12px;
+  text-align: left;
+}
+
+.search-suggestions button:last-child {
+  border-bottom: 0;
+}
+
+.search-suggestions button:hover {
+  background: #eff6ff;
+}
+
+.search-suggestions span {
+  overflow: hidden;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-suggestions small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .view-switcher {
@@ -332,6 +359,55 @@ button {
   min-width: 0;
   min-height: 0;
   background: #f8fafc;
+}
+
+.graph-search {
+  position: absolute;
+  z-index: 14;
+  top: 16px;
+  left: 16px;
+  width: min(360px, calc(100% - 32px));
+}
+
+.graph-search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px 8px 11px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #64748b;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 10%);
+}
+
+.graph-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
+.graph-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.graph-search-clear:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .graph-rearrange-button {
@@ -779,21 +855,15 @@ button {
     grid-template-columns: 1fr auto;
   }
 
-  .header-search {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-  }
-
   .view-switcher {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
     width: max-content;
   }
 
   .header-actions {
     grid-column: 2;
-    grid-row: 3;
+    grid-row: 2;
   }
 
   .workspace {

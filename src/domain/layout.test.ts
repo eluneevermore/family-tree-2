@@ -75,6 +75,77 @@ p->b,a
     expect(Math.abs((younger?.x ?? 0) - (older?.x ?? 0))).toBeGreaterThanOrEqual(PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
   });
 
+  it('reserves sibling columns from descendant subtree width', async () => {
+    const document = parseFamilyTreeText(`
+a:Parent,g=u
+b:First Child,g=u
+c:Second Child,g=u
+d:Grandchild One,g=u
+e:Grandchild Two,g=u
+f:Grandchild Three,g=u
+g:Other Grandchild,g=u
+a->b,c
+b->d,e,f
+c->g
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a');
+    const firstChild = layout.people.find((node) => node.id === 'b');
+    const secondChild = layout.people.find((node) => node.id === 'c');
+    const thirdGrandchild = layout.people.find((node) => node.id === 'f');
+    const otherGrandchild = layout.people.find((node) => node.id === 'g');
+
+    expect(firstChild?.x).toBe(layout.people.find((node) => node.id === 'd')?.x);
+    expect(secondChild?.x).toBe(otherGrandchild?.x);
+    expect((secondChild?.x ?? 0) - (firstChild?.x ?? 0)).toBe(3 * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP));
+    expect((otherGrandchild?.x ?? 0)).toBeGreaterThan(thirdGrandchild?.x ?? 0);
+  });
+
+  it('expands sibling columns from nested descendant subtree width', async () => {
+    const document = parseFamilyTreeText(`
+a:Parent,g=u
+b:First Child,g=u
+c:Second Child,g=u
+d:Grandchild One,g=u
+e:Grandchild Two,g=u
+f:Grandchild Three,g=u
+g:Other Grandchild,g=u
+h:Great Grandchild One,g=u
+i:Great Grandchild Two,g=u
+a->b,c
+b->d,e,f
+c->g
+d->h,i
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a');
+    const firstChild = layout.people.find((node) => node.id === 'b');
+    const secondChild = layout.people.find((node) => node.id === 'c');
+
+    expect(firstChild?.x).toBe(layout.people.find((node) => node.id === 'd')?.x);
+    expect(layout.people.find((node) => node.id === 'd')?.x).toBe(layout.people.find((node) => node.id === 'h')?.x);
+    expect((secondChild?.x ?? 0) - (firstChild?.x ?? 0)).toBe(4 * (PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP));
+  });
+
+  it('does not reserve collapsed descendant subtree columns', async () => {
+    const document = parseFamilyTreeText(`
+a:Parent,g=u
+b:First Child,g=u
+c:Second Child,g=u
+d:Grandchild One,g=u
+e:Grandchild Two,g=u
+f:Grandchild Three,g=u
+g:Other Grandchild,g=u
+a->b,c
+b->d,e,f
+c->g
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a', new Set(['b']));
+    const firstChild = layout.people.find((node) => node.id === 'b');
+    const secondChild = layout.people.find((node) => node.id === 'c');
+
+    expect((secondChild?.x ?? 0) - (firstChild?.x ?? 0)).toBe(PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
+    expect(layout.people.map((node) => node.id)).not.toContain('d');
+  });
+
   it('places a node descendant toggle and checked spouse line controls by default', async () => {
     const document = parseFamilyTreeText(`
 a:Alpha,g=u

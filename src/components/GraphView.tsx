@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ReactElement } from 'react';
-import { RefreshCcw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent, ReactElement } from 'react';
+import { RefreshCcw, Search, X } from 'lucide-react';
 import {
   Background,
   BackgroundVariant,
@@ -17,6 +17,7 @@ import { describeKinship } from '../domain/kinship';
 import { buildTreeLayout } from '../domain/layout';
 import { findMatchingPersonIds } from '../domain/visibility';
 import { PERSON_NODE_HEIGHT, PERSON_NODE_WIDTH } from '../constants';
+import { suggestPeople } from '../services/suggestions';
 import {
   FamilyTreeDocument,
   Language,
@@ -33,10 +34,10 @@ interface GraphViewProps {
   readonly focusPersonId: string | null;
   readonly language: Language;
   readonly locale: LocaleStrings;
-  readonly searchQuery: string;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
   readonly onFocusPerson: (personId: string) => void;
+  readonly onRevealPerson: (personId: string) => void;
   readonly onToggleFamily: (familyId: string) => void;
   readonly onTogglePerson: (personId: string) => void;
   readonly onAddChild: (person: PersonRecord) => void;
@@ -47,6 +48,11 @@ interface GraphViewProps {
 const nodeTypes = {
   person: PersonNode
 };
+
+interface NodePosition {
+  readonly x: number;
+  readonly y: number;
+}
 
 export function GraphView(props: GraphViewProps): ReactElement {
   return (
@@ -61,10 +67,10 @@ function GraphCanvas({
   focusPersonId,
   language,
   locale,
-  searchQuery,
   collapsedFamilyIds,
   collapsedPersonIds,
   onFocusPerson,
+  onRevealPerson,
   onToggleFamily,
   onTogglePerson,
   onAddChild,
@@ -75,8 +81,13 @@ function GraphCanvas({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const defaultNodePositionsRef = useRef<ReadonlyMap<string, NodePosition>>(new Map());
   const reactFlow = useReactFlow();
   const matchingPersonIds = useMemo(() => new Set(findMatchingPersonIds(document, searchQuery)), [document, searchQuery]);
+  const searchSuggestions = useMemo(() => suggestPeople(document, searchQuery), [document, searchQuery]);
   const kinship = useMemo(() => {
     return describeKinship(document, selectedPersonId, hoveredPersonId, language);
   }, [document, hoveredPersonId, language, selectedPersonId]);
@@ -134,7 +145,10 @@ function GraphCanvas({
   }, [reactFlow]);
 
   useEffect(() => {
-    setNodes((currentNodes) => preserveCurrentPositions(defaultNodes, currentNodes));
+    setNodes((currentNodes) => {
+      return preserveCurrentPositions(defaultNodes, currentNodes, defaultNodePositionsRef.current);
+    });
+    defaultNodePositionsRef.current = mapNodePositions(defaultNodes);
   }, [defaultNodes, setNodes]);
 
   const rearrangeGraph = useCallback((): void => {
@@ -146,17 +160,40 @@ function GraphCanvas({
     window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.2, duration: 250 }));
   }, [defaultNodes, locale.confirmRearrangeGraph, reactFlow, setNodes]);
 
+  const selectSearchPerson = useCallback((person: PersonRecord): void => {
+    setSearchQuery(person.name);
+    setIsSearchFocused(false);
+    onRevealPerson(person.id);
+  }, [onRevealPerson]);
+
+  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.key === 'Escape') {
+      setIsSearchFocused(false);
+      return;
+    }
+
+    if ((event.key === 'Enter' || event.key === 'Tab') && searchSuggestions.length > 0) {
+      event.preventDefault();
+      selectSearchPerson(searchSuggestions[0]);
+    }
+  }
+
+  function clearSearch(): void {
+    setSearchQuery('');
+    setIsSearchFocused(false);
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }
+
   useEffect(() => {
-    const firstMatch = Array.from(matchingPersonIds)[0];
-    if (firstMatch) {
-      window.requestAnimationFrame(() => focusPerson(firstMatch));
+    if (focusPersonId) {
+      window.requestAnimationFrame(() => focusPerson(focusPersonId));
       return;
     }
 
     if (layout.people.length > 0) {
       window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.2, duration: 250 }));
     }
-  }, [focusPerson, layout.people.length, matchingPersonIds, reactFlow]);
+  }, [focusPerson, focusPersonId, layout.people.length, reactFlow]);
 
   const edges = useMemo(() => buildFlowEdges(layout), [layout]);
 
@@ -167,6 +204,10 @@ function GraphCanvas({
         edges={edges}
         nodeTypes={nodeTypes}
         nodesDraggable
+        onPaneClick={() => {
+          setSelectedPersonId(null);
+          setHoveredPersonId(null);
+        }}
         onNodesChange={onNodesChange}
         fitView
         minZoom={0.15}
@@ -175,6 +216,52 @@ function GraphCanvas({
         <Background color="#dbe3ef" gap={22} variant={BackgroundVariant.Dots} />
         <MiniMap pannable zoomable />
       </ReactFlow>
+      <div className="graph-search">
+        <div className="graph-search-field">
+          <Search size={16} />
+          <input
+            ref={searchInputRef}
+            aria-label="Search people"
+            onBlur={() => setIsSearchFocused(false)}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
+              setIsSearchFocused(true);
+            }}
+            onFocus={() => setIsSearchFocused(true)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder={locale.searchPeople}
+            value={searchQuery}
+          />
+          {searchQuery ? (
+            <button
+              aria-label={locale.clearSearch}
+              className="graph-search-clear"
+              onClick={clearSearch}
+              onMouseDown={(event) => event.preventDefault()}
+              title={locale.clearSearch}
+              type="button"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
+        </div>
+        {isSearchFocused && searchSuggestions.length > 0 ? (
+          <div className="search-suggestions" role="listbox" aria-label={locale.searchSuggestions}>
+            {searchSuggestions.map((person) => (
+              <button
+                data-testid={`search-suggestion-${person.id}`}
+                key={person.id}
+                onClick={() => selectSearchPerson(person)}
+                onMouseDown={(event) => event.preventDefault()}
+                type="button"
+              >
+                <span>{person.name}</span>
+                <small>{person.id}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <button
         aria-label={locale.rearrangeGraph}
         className="graph-rearrange-button"
@@ -315,10 +402,30 @@ function buildFlowEdges(layout: TreeLayout): Edge[] {
   }));
 }
 
-function preserveCurrentPositions(defaultNodes: readonly Node[], currentNodes: readonly Node[]): Node[] {
+function preserveCurrentPositions(
+  defaultNodes: readonly Node[],
+  currentNodes: readonly Node[],
+  previousDefaultPositions: ReadonlyMap<string, NodePosition>
+): Node[] {
   const currentPositions = new Map(currentNodes.map((node) => [node.id, node.position]));
   return defaultNodes.map((node) => {
     const currentPosition = currentPositions.get(node.id);
-    return currentPosition ? { ...node, position: currentPosition } : node;
+    const previousDefaultPosition = previousDefaultPositions.get(node.id);
+    if (!currentPosition || hasDefaultPositionChanged(node.position, previousDefaultPosition)) {
+      return node;
+    }
+
+    return { ...node, position: currentPosition };
   });
+}
+
+function hasDefaultPositionChanged(
+  nextPosition: NodePosition,
+  previousPosition: NodePosition | undefined
+): boolean {
+  return !previousPosition || previousPosition.x !== nextPosition.x || previousPosition.y !== nextPosition.y;
+}
+
+function mapNodePositions(nodes: readonly Node[]): ReadonlyMap<string, NodePosition> {
+  return new Map(nodes.map((node) => [node.id, node.position]));
 }
