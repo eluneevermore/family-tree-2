@@ -29,6 +29,9 @@ dad+daughter->child
 `;
 
 const VIETNAMESE_EXTENDED_KINSHIP_TEXT = `
+greatGreatGrandfather:Kỵ,g=m
+greatGrandfather:Cụ Ông,g=m
+greatGrandmother:Cụ Bà,g=f
 pgf:Ông Nội,g=m
 pgm:Bà Nội,g=f
 mgf:Ông Ngoại,g=m
@@ -80,8 +83,12 @@ sonInLawDad:Son In Law Dad,g=m
 sonInLawMom:Son In Law Mom,g=f
 sonInLaw:Son In Law,g=m
 grandson:Grandson,g=m
+grandsonWife:Grandson Wife,g=f
 granddaughter:Granddaughter,g=f
+granddaughterHusband:Granddaughter Husband,g=m
 greatGrandchild:Great Grandchild,g=f
+greatGreatGrandfather->greatGrandfather
+greatGrandfather+greatGrandmother->pgf
 pgf+pgm->dadOlderBrother,dad,dadYoungerBrother,dadYoungerSister
 mgf+mgm->momOlderSister,mom,momYoungerBrother,momYoungerSister
 dadOlderBrother+dadOlderBrotherWife->olderMaleCousin,olderFemaleCousin,youngerCousin
@@ -106,6 +113,8 @@ son+daughterInLaw->grandson
 sonInLawDad+sonInLawMom->sonInLaw
 daughter+sonInLaw->granddaughter
 grandson->greatGrandchild
+grandson+grandsonWife
+granddaughter+granddaughterHusband
 `;
 
 describe('describeKinship', () => {
@@ -212,8 +221,14 @@ describe('describeKinship', () => {
   it('describes northern Vietnamese descendant and in-law parent terms', () => {
     const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
 
+    expect(describeKinship(document, 'me', 'greatGrandfather', 'vi')?.selectedToHovered).toBe('cụ');
+    expect(describeKinship(document, 'me', 'greatGreatGrandfather', 'vi')?.selectedToHovered).toBe('kỵ');
+    expect(describeKinship(document, 'me', 'daughterInLaw', 'vi')?.selectedToHovered).toBe('con dâu');
+    expect(describeKinship(document, 'me', 'sonInLaw', 'vi')?.selectedToHovered).toBe('con rể');
     expect(describeKinship(document, 'me', 'grandson', 'vi')?.selectedToHovered).toBe('cháu nội');
+    expect(describeKinship(document, 'me', 'grandsonWife', 'vi')?.selectedToHovered).toBe('cháu dâu');
     expect(describeKinship(document, 'me', 'granddaughter', 'vi')?.selectedToHovered).toBe('cháu ngoại');
+    expect(describeKinship(document, 'me', 'granddaughterHusband', 'vi')?.selectedToHovered).toBe('cháu rể');
     expect(describeKinship(document, 'me', 'greatGrandchild', 'vi')?.selectedToHovered).toBe('chắt');
     expect(describeKinship(document, 'me', 'sonInLawDad', 'vi')?.selectedToHovered).toBe('ông thông gia');
     expect(describeKinship(document, 'wife', 'sonInLawMom', 'vi')?.selectedToHovered).toBe('bà thông gia');
