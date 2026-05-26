@@ -1,6 +1,6 @@
 import { Baby, ChevronDown, ChevronRight, Heart, MoreHorizontal, UserPlus, Users } from 'lucide-react';
 import { Handle, NodeProps, Position } from '@xyflow/react';
-import { ChangeEvent, MouseEvent, ReactElement, useState } from 'react';
+import { ChangeEvent, MouseEvent, ReactElement, useEffect, useRef, useState } from 'react';
 import { GENDER_COLORS } from '../constants';
 import { LocaleStrings } from '../locales';
 import { PersonRecord } from '../types';
@@ -39,6 +39,7 @@ export interface PersonNodeData extends Record<string, unknown> {
 export function PersonNode({ data }: NodeProps): ReactElement {
   const nodeData = data as PersonNodeData;
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const borderColor = GENDER_COLORS[nodeData.person.gender];
   const lifeYears = formatLifeYears(nodeData.person);
   const nodeClassName = [
@@ -50,6 +51,30 @@ export function PersonNode({ data }: NodeProps): ReactElement {
   function stopClick(event: MouseEvent<HTMLButtonElement>): void {
     event.stopPropagation();
   }
+
+  useEffect(() => {
+    if (!isActionMenuOpen) {
+      return;
+    }
+
+    function closeActionMenuOnOutsidePointer(event: PointerEvent): void {
+      if (!isNodeTarget(event.target)) {
+        return;
+      }
+
+      if (actionsRef.current?.contains(event.target)) {
+        return;
+      }
+
+      setIsActionMenuOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeActionMenuOnOutsidePointer);
+
+    return () => {
+      document.removeEventListener('pointerdown', closeActionMenuOnOutsidePointer);
+    };
+  }, [isActionMenuOpen]);
 
   return (
     <div
@@ -122,7 +147,11 @@ export function PersonNode({ data }: NodeProps): ReactElement {
         </div>
       ) : null}
 
-      <div className="node-actions nodrag nopan" aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}>
+      <div
+        aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}
+        className="node-actions nodrag nopan"
+        ref={actionsRef}
+      >
         <button
           aria-expanded={isActionMenuOpen}
           aria-haspopup="menu"
@@ -198,6 +227,10 @@ function NodeActionMenuButton({
       <span>{label}</span>
     </button>
   );
+}
+
+function isNodeTarget(target: EventTarget | null): target is Node {
+  return target instanceof Node;
 }
 
 function formatLifeYears(person: PersonRecord): string | null {

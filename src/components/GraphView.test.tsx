@@ -100,6 +100,20 @@ describe('GraphView', () => {
     expect(onAddParent).toHaveBeenCalledWith(document.people.get('dad'));
   });
 
+  it('closes the node action menu when the graph pane is clicked', async () => {
+    const user = userEvent.setup();
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    const { container } = renderGraphView({ document });
+
+    const dadNode = await screen.findByTestId('person-node-dad');
+    await user.click(within(dadNode).getByTestId('person-actions-dad'));
+    expect(within(dadNode).getByTestId('person-action-add-spouse-dad')).toBeInTheDocument();
+
+    fireEvent.pointerDown(container.querySelector('.react-flow__pane') as Element);
+
+    expect(screen.queryByTestId('person-action-add-spouse-dad')).not.toBeInTheDocument();
+  });
+
   it('clears selected person when the graph pane is clicked', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const onClearSelection = vi.fn();
