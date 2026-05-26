@@ -47,6 +47,7 @@ function getVietnameseRelationshipLabels(
     ...getVietnameseChildSpouseLabels(document, source, target),
     ...getVietnameseGrandchildSpouseLabels(document, source, target),
     ...getVietnameseSpouseFamilyLabels(document, source, target),
+    ...getVietnameseMirroredExtendedFamilyLabels(document, source, target),
     ...getVietnameseInLawParentLabels(document, source, target),
     ...getVietnameseCoInLawLabels(document, source, target)
   ]);
@@ -196,6 +197,18 @@ function getVietnameseSpouseFamilyLabels(
   ]);
 }
 
+function getVietnameseMirroredExtendedFamilyLabels(
+  document: FamilyTreeDocument,
+  source: PersonRecord,
+  target: PersonRecord
+): readonly string[] {
+  return getVietnameseMirroredFamilySources(document, source).flatMap((familySource) => [
+    ...getVietnameseGenericGrandparentLabels(document, familySource, target),
+    ...getVietnameseAuntUncleLabels(document, familySource, target),
+    ...getVietnameseAuntUncleSpouseLabels(document, familySource, target)
+  ]);
+}
+
 function getVietnameseInLawParentLabels(
   document: FamilyTreeDocument,
   source: PersonRecord,
@@ -220,6 +233,37 @@ function getVietnameseCoInLawLabels(
   });
 
   return hasSiblingSpouses ? [formatVietnameseCoInLaw(document, source, target)] : [];
+}
+
+function getVietnameseMirroredFamilySources(
+  document: FamilyTreeDocument,
+  source: PersonRecord
+): readonly PersonRecord[] {
+  return uniquePeopleById([
+    ...getSpouseLinks(document, source.id).map((spouseLink) => spouseLink.spouse),
+    ...getVietnameseGrandchildSpouses(document, source)
+  ]);
+}
+
+function getVietnameseGrandchildSpouses(
+  document: FamilyTreeDocument,
+  source: PersonRecord
+): readonly PersonRecord[] {
+  return getChildren(document, source.id).flatMap((child) => {
+    return getChildren(document, child.id).flatMap((grandchild) => {
+      return getSpouseLinks(document, grandchild.id).map((spouseLink) => spouseLink.spouse);
+    });
+  });
+}
+
+function getVietnameseGenericGrandparentLabels(
+  document: FamilyTreeDocument,
+  source: PersonRecord,
+  target: PersonRecord
+): readonly string[] {
+  return getParentLinks(document, source.id)
+    .filter((parentLink) => isParentOf(document, target.id, parentLink.parent.id))
+    .map(() => formatVietnameseGenericGrandparent(target));
 }
 
 function describeVietnameseSibling(
@@ -393,6 +437,10 @@ function formatVietnameseGrandparent(grandparent: PersonRecord, parentBetween: P
   return side ? `${root} ${side}` : root;
 }
 
+function formatVietnameseGenericGrandparent(grandparent: PersonRecord): string {
+  return grandparent.gender === 'male' ? 'ông' : grandparent.gender === 'female' ? 'bà' : 'ông/bà';
+}
+
 function formatVietnameseGrandchild(parentBetween: PersonRecord): string {
   if (parentBetween.gender === 'male') {
     return 'cháu nội';
@@ -480,4 +528,16 @@ function formatVietnameseCoInLaw(
   }
 
   return relativeAge === 'younger' ? 'em đồng hao' : 'đồng hao';
+}
+
+function uniquePeopleById(people: readonly PersonRecord[]): readonly PersonRecord[] {
+  const seenIds = new Set<string>();
+  return people.filter((person) => {
+    if (seenIds.has(person.id)) {
+      return false;
+    }
+
+    seenIds.add(person.id);
+    return true;
+  });
 }

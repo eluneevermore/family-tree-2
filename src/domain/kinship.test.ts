@@ -66,6 +66,22 @@ olderFemaleCousinHusband:Older Female Cousin Husband,g=m
 youngerCousin:Younger Cousin,g=f,b=2005
 wifeDad:Wife Dad,g=m
 wifeMom:Wife Mom,g=f
+wifePgf:Wife Paternal Grandfather,g=m
+wifePgm:Wife Paternal Grandmother,g=f
+wifeMgf:Wife Maternal Grandfather,g=m
+wifeMgm:Wife Maternal Grandmother,g=f
+wifeDadOlderBrother:Wife Dad Older Brother,g=m
+wifeDadOlderBrotherWife:Wife Dad Older Brother Wife,g=f
+wifeDadYoungerBrother:Wife Dad Younger Brother,g=m
+wifeDadYoungerBrotherWife:Wife Dad Younger Brother Wife,g=f
+wifeDadYoungerSister:Wife Dad Younger Sister,g=f
+wifeDadYoungerSisterHusband:Wife Dad Younger Sister Husband,g=m
+wifeMomOlderSister:Wife Mom Older Sister,g=f
+wifeMomOlderSisterHusband:Wife Mom Older Sister Husband,g=m
+wifeMomYoungerBrother:Wife Mom Younger Brother,g=m
+wifeMomYoungerBrotherWife:Wife Mom Younger Brother Wife,g=f
+wifeMomYoungerSister:Wife Mom Younger Sister,g=f
+wifeMomYoungerSisterHusband:Wife Mom Younger Sister Husband,g=m
 wifeOlderBrother:Wife Older Brother,g=m
 wifeOlderSister:Wife Older Sister,g=f
 wife:Wife,g=f,b=2001
@@ -83,8 +99,26 @@ sonInLawDad:Son In Law Dad,g=m
 sonInLawMom:Son In Law Mom,g=f
 sonInLaw:Son In Law,g=m
 grandson:Grandson,g=m
+grandsonWifeDad:Grandson Wife Dad,g=m
+grandsonWifeMom:Grandson Wife Mom,g=f
+grandsonWifePgf:Grandson Wife Paternal Grandfather,g=m
+grandsonWifePgm:Grandson Wife Paternal Grandmother,g=f
+grandsonWifeDadOlderBrother:Grandson Wife Dad Older Brother,g=m
+grandsonWifeDadOlderBrotherWife:Grandson Wife Dad Older Brother Wife,g=f
+grandsonWifeDadYoungerBrother:Grandson Wife Dad Younger Brother,g=m
+grandsonWifeDadYoungerBrotherWife:Grandson Wife Dad Younger Brother Wife,g=f
+grandsonWifeDadYoungerSister:Grandson Wife Dad Younger Sister,g=f
+grandsonWifeDadYoungerSisterHusband:Grandson Wife Dad Younger Sister Husband,g=m
 grandsonWife:Grandson Wife,g=f
 granddaughter:Granddaughter,g=f
+granddaughterHusbandDad:Granddaughter Husband Dad,g=m
+granddaughterHusbandMom:Granddaughter Husband Mom,g=f
+granddaughterHusbandMgf:Granddaughter Husband Maternal Grandfather,g=m
+granddaughterHusbandMgm:Granddaughter Husband Maternal Grandmother,g=f
+granddaughterHusbandMomYoungerBrother:Granddaughter Husband Mom Younger Brother,g=m
+granddaughterHusbandMomYoungerBrotherWife:Granddaughter Husband Mom Younger Brother Wife,g=f
+granddaughterHusbandMomYoungerSister:Granddaughter Husband Mom Younger Sister,g=f
+granddaughterHusbandMomYoungerSisterHusband:Granddaughter Husband Mom Younger Sister Husband,g=m
 granddaughterHusband:Granddaughter Husband,g=m
 greatGrandchild:Great Grandchild,g=f
 greatGreatGrandfather->greatGrandfather
@@ -104,6 +138,14 @@ olderBrother+olderBrotherWife
 olderSister+olderSisterHusband
 youngerBrother+youngerBrotherWife
 youngerSister+youngerSisterHusband
+wifePgf+wifePgm->wifeDadOlderBrother,wifeDad,wifeDadYoungerBrother,wifeDadYoungerSister
+wifeMgf+wifeMgm->wifeMomOlderSister,wifeMom,wifeMomYoungerBrother,wifeMomYoungerSister
+wifeDadOlderBrother+wifeDadOlderBrotherWife
+wifeDadYoungerBrother+wifeDadYoungerBrotherWife
+wifeDadYoungerSister+wifeDadYoungerSisterHusband
+wifeMomOlderSister+wifeMomOlderSisterHusband
+wifeMomYoungerBrother+wifeMomYoungerBrotherWife
+wifeMomYoungerSister+wifeMomYoungerSisterHusband
 wifeDad+wifeMom->wifeOlderBrother,wifeOlderSister,wife,wifeYoungerSibling,wifeSister,wifeBrother
 me+wife->son,daughter
 wifeSister+olderCoInLaw
@@ -113,7 +155,16 @@ son+daughterInLaw->grandson
 sonInLawDad+sonInLawMom->sonInLaw
 daughter+sonInLaw->granddaughter
 grandson->greatGrandchild
+grandsonWifePgf+grandsonWifePgm->grandsonWifeDadOlderBrother,grandsonWifeDad,grandsonWifeDadYoungerBrother,grandsonWifeDadYoungerSister
+grandsonWifeDadOlderBrother+grandsonWifeDadOlderBrotherWife
+grandsonWifeDadYoungerBrother+grandsonWifeDadYoungerBrotherWife
+grandsonWifeDadYoungerSister+grandsonWifeDadYoungerSisterHusband
+grandsonWifeDad+grandsonWifeMom->grandsonWife
 grandson+grandsonWife
+granddaughterHusbandMgf+granddaughterHusbandMgm->granddaughterHusbandMom,granddaughterHusbandMomYoungerBrother,granddaughterHusbandMomYoungerSister
+granddaughterHusbandMomYoungerBrother+granddaughterHusbandMomYoungerBrotherWife
+granddaughterHusbandMomYoungerSister+granddaughterHusbandMomYoungerSisterHusband
+granddaughterHusbandDad+granddaughterHusbandMom->granddaughterHusband
 granddaughter+granddaughterHusband
 `;
 
@@ -216,6 +267,44 @@ describe('describeKinship', () => {
     expect(describeKinship(document, 'wife', 'youngerBrother', 'vi')?.selectedToHovered).toBe('em chồng');
     expect(describeKinship(document, 'me', 'olderCoInLaw', 'vi')?.selectedToHovered).toBe('anh đồng hao');
     expect(describeKinship(document, 'me', 'youngerCoInLaw', 'vi')?.selectedToHovered).toBe('em đồng hao');
+  });
+
+  it('describes northern Vietnamese extended terms through a spouse family', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'wifePgf', 'vi')?.selectedToHovered).toBe('ông');
+    expect(describeKinship(document, 'me', 'wifePgm', 'vi')?.selectedToHovered).toBe('bà');
+    expect(describeKinship(document, 'me', 'wifeDadOlderBrother', 'vi')?.selectedToHovered).toBe('bác trai');
+    expect(describeKinship(document, 'me', 'wifeDadOlderBrotherWife', 'vi')?.selectedToHovered).toBe('bác gái');
+    expect(describeKinship(document, 'me', 'wifeDadYoungerBrother', 'vi')?.selectedToHovered).toBe('chú');
+    expect(describeKinship(document, 'me', 'wifeDadYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('thím');
+    expect(describeKinship(document, 'me', 'wifeDadYoungerSister', 'vi')?.selectedToHovered).toBe('cô');
+    expect(describeKinship(document, 'me', 'wifeDadYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
+    expect(describeKinship(document, 'me', 'wifeMomOlderSister', 'vi')?.selectedToHovered).toBe('bác gái');
+    expect(describeKinship(document, 'me', 'wifeMomOlderSisterHusband', 'vi')?.selectedToHovered).toBe('bác trai');
+    expect(describeKinship(document, 'me', 'wifeMomYoungerBrother', 'vi')?.selectedToHovered).toBe('cậu');
+    expect(describeKinship(document, 'me', 'wifeMomYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('mợ');
+    expect(describeKinship(document, 'me', 'wifeMomYoungerSister', 'vi')?.selectedToHovered).toBe('dì');
+    expect(describeKinship(document, 'me', 'wifeMomYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
+  });
+
+  it('describes northern Vietnamese extended terms through grandchild spouses', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'grandsonWifePgf', 'vi')?.selectedToHovered).toBe('ông');
+    expect(describeKinship(document, 'me', 'grandsonWifePgm', 'vi')?.selectedToHovered).toBe('bà');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadOlderBrother', 'vi')?.selectedToHovered).toBe('bác trai');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadOlderBrotherWife', 'vi')?.selectedToHovered).toBe('bác gái');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadYoungerBrother', 'vi')?.selectedToHovered).toBe('chú');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('thím');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadYoungerSister', 'vi')?.selectedToHovered).toBe('cô');
+    expect(describeKinship(document, 'me', 'grandsonWifeDadYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMgf', 'vi')?.selectedToHovered).toBe('ông');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMgm', 'vi')?.selectedToHovered).toBe('bà');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMomYoungerBrother', 'vi')?.selectedToHovered).toBe('cậu');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMomYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('mợ');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMomYoungerSister', 'vi')?.selectedToHovered).toBe('dì');
+    expect(describeKinship(document, 'me', 'granddaughterHusbandMomYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
   });
 
   it('describes northern Vietnamese descendant and in-law parent terms', () => {
