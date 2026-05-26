@@ -49,23 +49,34 @@ c->g
   await expect(page.getByTestId('person-node-g')).toBeVisible();
 });
 
-test('selects a person and shows localized kinship on hover', async ({ page }) => {
+test('shows kinship between people in split graph views', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'text' }).click();
-  await page.getByLabel('Family tree source').fill(`dad:Dad,g=m,b=1970
-mom:Mom,g=f,b=1972
-me:Me,g=m,b=2000
-dad+mom->me
+  await page.getByLabel('Family tree source').fill(`pa:Alpha Parent,g=u
+pb:Beta Parent,g=u
+ac:Alpha Child,g=u
+bc:Beta Child,g=u
+pa->ac
+pb->bc
 `);
   await page.getByRole('button', { name: 'graph' }).click();
 
-  await page.getByTestId('person-node-me').click();
-  await page.getByTestId('person-node-dad').locator('.person-main').hover();
-  await expect(page.getByText('father')).toBeVisible();
+  const firstGraphView = page.getByTestId('graph-view-graph-1');
+  await firstGraphView.getByLabel('Search people').fill('Alpha Child');
+  await firstGraphView.getByTestId('search-suggestion-ac').click();
+  await page.getByRole('button', { name: 'Split graph view' }).click();
 
+  const secondGraphView = page.getByTestId('graph-view-graph-2');
+  await secondGraphView.getByLabel('Search people').fill('Beta Child');
+  await secondGraphView.getByTestId('search-suggestion-bc').click();
+
+  await firstGraphView.getByTestId('person-node-ac').click();
+  await secondGraphView.getByTestId('person-node-bc').locator('.person-main').hover();
+
+  await expect(page.getByRole('status', { name: 'Kinship' })).toContainText('relative');
   await page.getByLabel('Language').selectOption('vi');
-  await page.getByTestId('person-node-dad').locator('.person-main').hover();
-  await expect(page.getByText('bố')).toBeVisible();
+  await secondGraphView.getByTestId('person-node-bc').dispatchEvent('mouseover');
+  await expect(page.getByRole('status', { name: 'Kinship' })).toContainText('họ hàng');
 });
 
 test('spouse shortcut switches graph focus to spouse ancestry', async ({ page }) => {

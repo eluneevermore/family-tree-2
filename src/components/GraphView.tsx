@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactElement } from 'react';
 import { RefreshCcw, Search, X } from 'lucide-react';
 import {
@@ -13,14 +13,12 @@ import {
   useNodesState,
   useReactFlow
 } from '@xyflow/react';
-import { describeKinship } from '../domain/kinship';
 import { buildTreeLayout } from '../domain/layout';
 import { findMatchingPersonIds } from '../domain/visibility';
 import { PERSON_NODE_HEIGHT, PERSON_NODE_WIDTH } from '../constants';
 import { suggestPeople } from '../services/suggestions';
 import {
   FamilyTreeDocument,
-  Language,
   LayoutPersonToggle,
   LayoutSpouseShortcut,
   PersonRecord,
@@ -32,12 +30,15 @@ import { PersonToggleSummary, PersonNode, PersonNodeData, SpouseSummary } from '
 interface GraphViewProps {
   readonly document: FamilyTreeDocument;
   readonly focusPersonId: string | null;
-  readonly language: Language;
   readonly locale: LocaleStrings;
+  readonly selectedPersonId: string | null;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
+  readonly onClearSelection: () => void;
   readonly onFocusPerson: (personId: string) => void;
+  readonly onHoverPerson: (personId: string | null) => void;
   readonly onRevealPerson: (personId: string) => void;
+  readonly onSelectPerson: (personId: string) => void;
   readonly onToggleFamily: (familyId: string) => void;
   readonly onTogglePerson: (personId: string) => void;
   readonly onAddChild: (person: PersonRecord) => void;
@@ -54,7 +55,7 @@ interface NodePosition {
   readonly y: number;
 }
 
-export function GraphView(props: GraphViewProps): ReactElement {
+function GraphViewComponent(props: GraphViewProps): ReactElement {
   return (
     <ReactFlowProvider>
       <GraphCanvas {...props} />
@@ -62,15 +63,20 @@ export function GraphView(props: GraphViewProps): ReactElement {
   );
 }
 
+export const GraphView = memo(GraphViewComponent, areGraphViewPropsEqual);
+
 function GraphCanvas({
   document,
   focusPersonId,
-  language,
   locale,
+  selectedPersonId,
   collapsedFamilyIds,
   collapsedPersonIds,
+  onClearSelection,
   onFocusPerson,
+  onHoverPerson,
   onRevealPerson,
+  onSelectPerson,
   onToggleFamily,
   onTogglePerson,
   onAddChild,
@@ -79,8 +85,6 @@ function GraphCanvas({
 }: GraphViewProps): ReactElement {
   const [layout, setLayout] = useState<TreeLayout>({ people: [], families: [], edges: [] });
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
-  const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -88,9 +92,6 @@ function GraphCanvas({
   const reactFlow = useReactFlow();
   const matchingPersonIds = useMemo(() => new Set(findMatchingPersonIds(document, searchQuery)), [document, searchQuery]);
   const searchSuggestions = useMemo(() => suggestPeople(document, searchQuery), [document, searchQuery]);
-  const kinship = useMemo(() => {
-    return describeKinship(document, selectedPersonId, hoveredPersonId, language);
-  }, [document, hoveredPersonId, language, selectedPersonId]);
   const defaultNodes = useMemo(() => buildFlowNodes({
     layout,
     document,
@@ -101,8 +102,8 @@ function GraphCanvas({
     onAddParent,
     onAddSpouse,
     onFocusPerson,
-    onHoverPerson: setHoveredPersonId,
-    onSelectPerson: setSelectedPersonId,
+    onHoverPerson,
+    onSelectPerson,
     onToggleFamily,
     onTogglePerson
   }), [
@@ -114,6 +115,8 @@ function GraphCanvas({
     onAddParent,
     onAddSpouse,
     onFocusPerson,
+    onHoverPerson,
+    onSelectPerson,
     onToggleFamily,
     onTogglePerson,
     selectedPersonId
@@ -204,10 +207,7 @@ function GraphCanvas({
         edges={edges}
         nodeTypes={nodeTypes}
         nodesDraggable
-        onPaneClick={() => {
-          setSelectedPersonId(null);
-          setHoveredPersonId(null);
-        }}
+        onPaneClick={onClearSelection}
         onNodesChange={onNodesChange}
         fitView
         minZoom={0.15}
@@ -272,35 +272,17 @@ function GraphCanvas({
         <RefreshCcw size={15} />
         <span>{locale.rearrangeGraph}</span>
       </button>
-      {kinship ? (
-        <div className="kinship-card" role="status" aria-label="Kinship">
-          <div className="kinship-title">{locale.relationship}</div>
-          <p>
-            <strong>{document.people.get(kinship.selectedPersonId)?.name}</strong>
-            {' '}
-            {locale.calls}
-            {' '}
-            <strong>{document.people.get(kinship.hoveredPersonId)?.name}</strong>
-            {': '}
-            <span>{kinship.selectedToHovered}</span>
-          </p>
-          <p>
-            <strong>{document.people.get(kinship.hoveredPersonId)?.name}</strong>
-            {' '}
-            {locale.calls}
-            {' '}
-            <strong>{document.people.get(kinship.selectedPersonId)?.name}</strong>
-            {': '}
-            <span>{kinship.hoveredToSelected}</span>
-          </p>
-        </div>
-      ) : selectedPersonId ? (
-        <div className="kinship-card kinship-card-muted" role="status">
-          {locale.relationshipHint}
-        </div>
-      ) : null}
     </section>
   );
+}
+
+function areGraphViewPropsEqual(previousProps: GraphViewProps, nextProps: GraphViewProps): boolean {
+  return previousProps.document === nextProps.document
+    && previousProps.focusPersonId === nextProps.focusPersonId
+    && previousProps.locale === nextProps.locale
+    && previousProps.selectedPersonId === nextProps.selectedPersonId
+    && previousProps.collapsedFamilyIds === nextProps.collapsedFamilyIds
+    && previousProps.collapsedPersonIds === nextProps.collapsedPersonIds;
 }
 
 interface BuildFlowNodesOptions {

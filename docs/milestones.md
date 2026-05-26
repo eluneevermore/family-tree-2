@@ -54,7 +54,14 @@
 - [x] Display how each person calls the other in northern Vietnamese terms.
 - [x] Add component and Playwright coverage for selected-person hover labels.
 
-## M8 - Final Validation
+## M8 - Split Graph Views
+- [x] Add a second graph view that can be opened and closed from the graph workspace.
+- [x] Keep focus, collapse state, search, and manual layout independent per graph view.
+- [x] Share selected and hovered people across graph views for cross-view kinship labels.
+- [x] Show kinship in a shared footer instead of per graph view.
+- [x] Add component and Playwright coverage for split-view kinship.
+
+## M9 - Final Validation
 - [x] Run unit/component tests.
 - [x] Run production build.
 - [x] Run Playwright smoke tests.

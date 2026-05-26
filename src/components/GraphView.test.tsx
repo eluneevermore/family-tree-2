@@ -1,8 +1,10 @@
+import { ComponentProps } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { locales } from '../locales';
 import { parseFamilyTreeText } from '../services/parser';
+import { FamilyTreeDocument } from '../types';
 import { GraphView } from './GraphView';
 
 const GRAPH_TEXT = `
@@ -13,111 +15,53 @@ sis:Sister,g=f,b=1998
 dad+mom->sis,me
 `;
 
+type GraphViewProps = ComponentProps<typeof GraphView>;
+
+interface RenderGraphViewOptions extends Partial<GraphViewProps> {
+  readonly document: FamilyTreeDocument;
+}
+
 describe('GraphView', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('selects a person and shows kinship on hover', async () => {
+  it('notifies when a person is selected and hovered', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    const onHoverPerson = vi.fn();
+    const onSelectPerson = vi.fn();
+    renderGraphView({ document, onHoverPerson, onSelectPerson });
 
     fireEvent.click(await screen.findByTestId('person-node-me'));
     fireEvent.mouseEnter(await screen.findByTestId('person-node-dad'));
 
-    expect(await screen.findByText('father')).toBeInTheDocument();
-    expect(screen.getByText('son')).toBeInTheDocument();
+    expect(onSelectPerson).toHaveBeenCalledWith('me');
+    expect(onHoverPerson).toHaveBeenCalledWith('dad');
   });
 
-  it('shows kinship when hovering a spouse shortcut item', async () => {
+  it('notifies when a spouse shortcut item is hovered', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    const onHoverPerson = vi.fn();
+    renderGraphView({ document, onHoverPerson });
 
-    fireEvent.click(await screen.findByTestId('person-node-me'));
     fireEvent.mouseEnter(await screen.findByTestId('spouse-item-couple:dad+mom'));
 
-    expect(await screen.findByText('mother')).toBeInTheDocument();
-    expect(screen.getByText('son')).toBeInTheDocument();
+    expect(onHoverPerson).toHaveBeenCalledWith('mom');
   });
 
   it('shows birth and death years in person nodes', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    renderGraphView({ document });
 
     expect(await screen.findByText('1970 - 2010')).toBeInTheDocument();
   });
 
   it('fires node toggle, spouse checkbox, and spouse shortcut actions', async () => {
-    const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const onToggleFamily = vi.fn();
     const onTogglePerson = vi.fn();
     const onFocusPerson = vi.fn();
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={onFocusPerson}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={onToggleFamily}
-        onTogglePerson={onTogglePerson}
-      />
-    );
+    renderGraphView({ document, onFocusPerson, onToggleFamily, onTogglePerson });
 
     const spouseItem = await screen.findByTestId('spouse-item-couple:dad+mom');
     fireEvent.click(await screen.findByTestId('person-toggle-dad'));
@@ -133,23 +77,7 @@ describe('GraphView', () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    renderGraphView({ document });
 
     await user.click(await screen.findByRole('button', { name: locales.en.rearrangeGraph }));
 
@@ -159,23 +87,7 @@ describe('GraphView', () => {
   it('groups add actions into a menu and fires add parent', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const onAddParent = vi.fn();
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={onAddParent}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    renderGraphView({ document, onAddParent });
 
     const dadNode = await screen.findByTestId('person-node-dad');
     fireEvent.click(within(dadNode).getByTestId('person-actions-dad'));
@@ -190,52 +102,19 @@ describe('GraphView', () => {
 
   it('clears selected person when the graph pane is clicked', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
-    const { container } = render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={vi.fn()}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    const onClearSelection = vi.fn();
+    const { container } = renderGraphView({ document, onClearSelection, selectedPersonId: 'me' });
 
-    fireEvent.click(await screen.findByTestId('person-node-me'));
-    expect(await screen.findByText(locales.en.relationshipHint)).toBeInTheDocument();
     fireEvent.click(container.querySelector('.react-flow__pane') as Element);
 
-    expect(screen.queryByText(locales.en.relationshipHint)).not.toBeInTheDocument();
+    expect(onClearSelection).toHaveBeenCalled();
   });
 
   it('keeps search local to the graph and supports clearing it', async () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
     const onRevealPerson = vi.fn();
-    render(
-      <GraphView
-        collapsedFamilyIds={new Set()}
-        collapsedPersonIds={new Set()}
-        document={document}
-        focusPersonId="me"
-        language="en"
-        locale={locales.en}
-        onAddChild={vi.fn()}
-        onAddParent={vi.fn()}
-        onAddSpouse={vi.fn()}
-        onFocusPerson={vi.fn()}
-        onRevealPerson={onRevealPerson}
-        onToggleFamily={vi.fn()}
-        onTogglePerson={vi.fn()}
-      />
-    );
+    renderGraphView({ document, onRevealPerson });
 
     await user.type(screen.getByLabelText('Search people'), 'mo');
 
@@ -249,3 +128,26 @@ describe('GraphView', () => {
     expect(screen.queryByRole('listbox', { name: locales.en.searchSuggestions })).not.toBeInTheDocument();
   });
 });
+
+function renderGraphView(options: RenderGraphViewOptions): ReturnType<typeof render> {
+  return render(
+    <GraphView
+      collapsedFamilyIds={options.collapsedFamilyIds ?? new Set()}
+      collapsedPersonIds={options.collapsedPersonIds ?? new Set()}
+      document={options.document}
+      focusPersonId={options.focusPersonId ?? 'me'}
+      locale={options.locale ?? locales.en}
+      selectedPersonId={options.selectedPersonId ?? null}
+      onAddChild={options.onAddChild ?? vi.fn()}
+      onAddParent={options.onAddParent ?? vi.fn()}
+      onAddSpouse={options.onAddSpouse ?? vi.fn()}
+      onClearSelection={options.onClearSelection ?? vi.fn()}
+      onFocusPerson={options.onFocusPerson ?? vi.fn()}
+      onHoverPerson={options.onHoverPerson ?? vi.fn()}
+      onRevealPerson={options.onRevealPerson ?? vi.fn()}
+      onSelectPerson={options.onSelectPerson ?? vi.fn()}
+      onToggleFamily={options.onToggleFamily ?? vi.fn()}
+      onTogglePerson={options.onTogglePerson ?? vi.fn()}
+    />
+  );
+}

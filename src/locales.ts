@@ -5,10 +5,13 @@ export interface LocaleStrings {
   readonly searchPeople: string;
   readonly searchSuggestions: string;
   readonly clearSearch: string;
+  readonly resizeEditor: string;
   readonly viewMode: string;
   readonly import: string;
   readonly export: string;
   readonly toggleSplitView: string;
+  readonly splitGraphView: string;
+  readonly closeSplitGraphView: string;
   readonly compactDsl: string;
   readonly valid: string;
   readonly needsFixes: string;
@@ -56,10 +59,13 @@ export const locales: Record<Language, LocaleStrings> = {
     searchPeople: 'Search people',
     searchSuggestions: 'Search suggestions',
     clearSearch: 'Clear search',
+    resizeEditor: 'Resize editor',
     viewMode: 'View mode',
     import: 'Import',
     export: 'Export',
     toggleSplitView: 'Toggle split view',
+    splitGraphView: 'Split graph view',
+    closeSplitGraphView: 'Close split graph view',
     compactDsl: 'Compact DSL',
     valid: 'Valid',
     needsFixes: 'Needs fixes',
@@ -105,10 +111,13 @@ export const locales: Record<Language, LocaleStrings> = {
     searchPeople: 'Tìm người',
     searchSuggestions: 'Gợi ý tìm kiếm',
     clearSearch: 'Xoá tìm kiếm',
+    resizeEditor: 'Đổi kích thước trình soạn thảo',
     viewMode: 'Chế độ xem',
     import: 'Nhập',
     export: 'Xuất',
     toggleSplitView: 'Bật/tắt chia đôi',
+    splitGraphView: 'Chia đôi đồ thị',
+    closeSplitGraphView: 'Đóng đồ thị thứ hai',
     compactDsl: 'DSL rút gọn',
     valid: 'Hợp lệ',
     needsFixes: 'Cần sửa',

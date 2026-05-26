@@ -196,14 +196,83 @@ button {
   display: block;
 }
 
-.text-panel {
+.graph-workspace {
   display: flex;
-  flex: 0 0 38%;
-  min-width: 360px;
-  max-width: 620px;
+  flex: 1;
+  min-width: 0;
   min-height: 0;
   flex-direction: column;
+  background: #ffffff;
+}
+
+.editor-resize-handle {
+  position: relative;
+  flex: 0 0 10px;
+  align-self: stretch;
   border-right: 1px solid #dbe3ef;
+  background: #f8fafc;
+  cursor: col-resize;
+}
+
+.editor-resize-handle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 44px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.editor-resize-handle:hover::after,
+.editor-resize-handle:focus-visible::after {
+  background: #2563eb;
+}
+
+.editor-resize-handle:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: -2px;
+}
+
+.graph-views {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.graph-views-one {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.graph-views-two {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.graph-view-frame {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid #dbe3ef;
+}
+
+.graph-view-frame:first-child {
+  border-left: 0;
+}
+
+.view-graph .graph-workspace {
+  height: 100%;
+}
+
+.text-panel {
+  display: flex;
+  flex: 0 0 var(--text-panel-width, 38%);
+  min-width: 320px;
+  max-width: 760px;
+  min-height: 0;
+  flex-direction: column;
   background: #ffffff;
 }
 
@@ -413,7 +482,7 @@ button {
 .graph-rearrange-button {
   position: absolute;
   z-index: 12;
-  top: 16px;
+  bottom: 16px;
   left: 16px;
   display: inline-flex;
   align-items: center;
@@ -433,42 +502,45 @@ button {
   color: #1d4ed8;
 }
 
-.kinship-card {
-  position: absolute;
-  z-index: 12;
-  top: 16px;
-  right: 16px;
-  width: min(340px, calc(100% - 32px));
-  border: 1px solid #dbe3ef;
-  border-radius: 8px;
-  background: rgb(255 255 255 / 94%);
-  box-shadow: 0 16px 44px rgb(15 23 42 / 14%);
-  padding: 12px;
+.kinship-footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  max-height: 170px;
+  overflow: auto;
+  border-top: 1px solid #edf2f7;
+  padding: 10px 12px;
+  background: #f8fafc;
   color: #0f172a;
-  pointer-events: none;
 }
 
-.kinship-card-muted {
+.kinship-footer-muted {
+  display: flex;
   color: #64748b;
   font-size: 12px;
   line-height: 1.4;
 }
 
-.kinship-title {
-  margin-bottom: 8px;
+.kinship-footer-title {
   color: #1d4ed8;
   font-size: 11px;
   font-weight: 900;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.kinship-card p {
-  margin: 6px 0 0;
+.kinship-footer p {
+  min-width: 0;
+  margin: 0;
   font-size: 12px;
   line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.kinship-card span {
+.kinship-footer span {
   color: #1d4ed8;
   font-weight: 800;
 }
@@ -870,12 +942,56 @@ button {
     display: block;
   }
 
+  .graph-views {
+    height: auto;
+  }
+
+  .graph-workspace {
+    height: 50%;
+  }
+
+  .editor-resize-handle {
+    display: none;
+  }
+
+  .view-graph .graph-workspace {
+    height: 100%;
+  }
+
+  .graph-views-two {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+  }
+
+  .graph-view-frame {
+    border-top: 1px solid #dbe3ef;
+    border-left: 0;
+  }
+
+  .graph-view-frame:first-child {
+    border-top: 0;
+  }
+
+  .kinship-footer {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 5px;
+  }
+
+  .kinship-footer p {
+    white-space: normal;
+  }
+
   .text-panel,
   .graph-panel {
     width: 100%;
     min-width: 0;
     max-width: none;
     height: 50%;
+  }
+
+  .graph-workspace .graph-panel {
+    height: 100%;
   }
 
   .text-panel {
