@@ -28,6 +28,86 @@ dad+mom->daughter
 dad+daughter->child
 `;
 
+const VIETNAMESE_EXTENDED_KINSHIP_TEXT = `
+pgf:Ông Nội,g=m
+pgm:Bà Nội,g=f
+mgf:Ông Ngoại,g=m
+mgm:Bà Ngoại,g=f
+dadOlderBrother:Bác Trai,g=m
+dadOlderBrotherWife:Bác Gái,g=f
+dad:Dad,g=m
+dadYoungerBrother:Chú,g=m
+dadYoungerBrotherWife:Thím,g=f
+dadYoungerSister:Cô,g=f
+dadYoungerSisterHusband:Dượng Cô,g=m
+momOlderSister:Bác Gái Mẹ,g=f
+momOlderSisterHusband:Bác Trai Mẹ,g=m
+mom:Mom,g=f
+momYoungerBrother:Cậu,g=m
+momYoungerBrotherWife:Mợ,g=f
+momYoungerSister:Dì,g=f
+momYoungerSisterHusband:Dượng Dì,g=m
+olderBrother:Older Brother,g=m
+olderBrotherWife:Older Brother Wife,g=f
+olderSister:Older Sister,g=f
+olderSisterHusband:Older Sister Husband,g=m
+me:Me,g=m,b=2000
+youngerBrother:Younger Brother,g=m
+youngerBrotherWife:Younger Brother Wife,g=f
+youngerSister:Younger Sister,g=f
+youngerSisterHusband:Younger Sister Husband,g=m
+olderMaleCousin:Older Male Cousin,g=m,b=1990
+olderMaleCousinWife:Older Male Cousin Wife,g=f
+olderFemaleCousin:Older Female Cousin,g=f,b=1992
+olderFemaleCousinHusband:Older Female Cousin Husband,g=m
+youngerCousin:Younger Cousin,g=f,b=2005
+wifeDad:Wife Dad,g=m
+wifeMom:Wife Mom,g=f
+wifeOlderBrother:Wife Older Brother,g=m
+wifeOlderSister:Wife Older Sister,g=f
+wife:Wife,g=f,b=2001
+wifeYoungerSibling:Wife Younger Sibling,g=f
+wifeSister:Wife Sister,g=f,b=2004
+wifeBrother:Wife Brother,g=m,b=2006
+olderCoInLaw:Older Co In Law,g=m,b=1995
+youngerCoInLaw:Younger Co In Law,g=m,b=2005
+son:Son,g=m
+daughter:Daughter,g=f
+daughterInLawDad:Daughter In Law Dad,g=m
+daughterInLawMom:Daughter In Law Mom,g=f
+daughterInLaw:Daughter In Law,g=f
+sonInLawDad:Son In Law Dad,g=m
+sonInLawMom:Son In Law Mom,g=f
+sonInLaw:Son In Law,g=m
+grandson:Grandson,g=m
+granddaughter:Granddaughter,g=f
+greatGrandchild:Great Grandchild,g=f
+pgf+pgm->dadOlderBrother,dad,dadYoungerBrother,dadYoungerSister
+mgf+mgm->momOlderSister,mom,momYoungerBrother,momYoungerSister
+dadOlderBrother+dadOlderBrotherWife->olderMaleCousin,olderFemaleCousin,youngerCousin
+olderMaleCousin+olderMaleCousinWife
+olderFemaleCousin+olderFemaleCousinHusband
+dadYoungerBrother+dadYoungerBrotherWife
+dadYoungerSister+dadYoungerSisterHusband
+momOlderSister+momOlderSisterHusband
+momYoungerBrother+momYoungerBrotherWife
+momYoungerSister+momYoungerSisterHusband
+dad+mom->olderBrother,olderSister,me,youngerBrother,youngerSister
+olderBrother+olderBrotherWife
+olderSister+olderSisterHusband
+youngerBrother+youngerBrotherWife
+youngerSister+youngerSisterHusband
+wifeDad+wifeMom->wifeOlderBrother,wifeOlderSister,wife,wifeYoungerSibling,wifeSister,wifeBrother
+me+wife->son,daughter
+wifeSister+olderCoInLaw
+wifeBrother+youngerCoInLaw
+daughterInLawDad+daughterInLawMom->daughterInLaw
+son+daughterInLaw->grandson
+sonInLawDad+sonInLawMom->sonInLaw
+daughter+sonInLaw->granddaughter
+grandson->greatGrandchild
+`;
+
 describe('describeKinship', () => {
   it('describes direct English relationships both ways', () => {
     const document = parseFamilyTreeText(KINSHIP_TEXT);
@@ -49,9 +129,9 @@ describe('describeKinship', () => {
     const document = parseFamilyTreeText(KINSHIP_TEXT);
 
     expect(describeKinship(document, 'me', 'dad', 'vi')?.selectedToHovered).toBe('bố');
-    expect(describeKinship(document, 'me', 'sis', 'vi')?.selectedToHovered).toBe('chị');
+    expect(describeKinship(document, 'me', 'sis', 'vi')?.selectedToHovered).toBe('chị ruột');
     expect(describeKinship(document, 'me', 'gf', 'vi')?.selectedToHovered).toBe('ông nội');
-    expect(describeKinship(document, 'me', 'uncle', 'vi')?.selectedToHovered).toBe('bác');
+    expect(describeKinship(document, 'me', 'uncle', 'vi')?.selectedToHovered).toBe('bác trai');
     expect(describeKinship(document, 'me', 'aunt', 'vi')?.selectedToHovered).toBe('cô');
     expect(describeKinship(document, 'me', 'cousin', 'vi')?.selectedToHovered).toBe('em họ');
   });
@@ -70,5 +150,72 @@ describe('describeKinship', () => {
     expect(describeKinship(document, 'daughter', 'dad', 'vi')?.selectedToHovered).toBe('bố, chồng');
     expect(describeKinship(document, 'dad', 'daughter', 'vi')?.selectedToHovered).toBe('con, vợ');
     expect(describeKinship(document, 'child', 'dad', 'vi')?.selectedToHovered).toBe('bố, ông ngoại');
+  });
+
+  it('uses relationship-line child order as Vietnamese birth order when DOB is missing', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'olderBrother', 'vi')?.selectedToHovered).toBe('anh ruột');
+    expect(describeKinship(document, 'me', 'olderSister', 'vi')?.selectedToHovered).toBe('chị ruột');
+    expect(describeKinship(document, 'me', 'youngerBrother', 'vi')?.selectedToHovered).toBe('em trai');
+    expect(describeKinship(document, 'me', 'youngerSister', 'vi')?.selectedToHovered).toBe('em gái');
+  });
+
+  it('describes northern Vietnamese aunt and uncle spouse terms', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'dadOlderBrother', 'vi')?.selectedToHovered).toBe('bác trai');
+    expect(describeKinship(document, 'me', 'dadOlderBrotherWife', 'vi')?.selectedToHovered).toBe('bác gái');
+    expect(describeKinship(document, 'me', 'dadYoungerBrother', 'vi')?.selectedToHovered).toBe('chú');
+    expect(describeKinship(document, 'me', 'dadYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('thím');
+    expect(describeKinship(document, 'me', 'dadYoungerSister', 'vi')?.selectedToHovered).toBe('cô');
+    expect(describeKinship(document, 'me', 'dadYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
+    expect(describeKinship(document, 'me', 'momOlderSister', 'vi')?.selectedToHovered).toBe('bác gái');
+    expect(describeKinship(document, 'me', 'momOlderSisterHusband', 'vi')?.selectedToHovered).toBe('bác trai');
+    expect(describeKinship(document, 'me', 'momYoungerBrother', 'vi')?.selectedToHovered).toBe('cậu');
+    expect(describeKinship(document, 'me', 'momYoungerBrotherWife', 'vi')?.selectedToHovered).toBe('mợ');
+    expect(describeKinship(document, 'me', 'momYoungerSister', 'vi')?.selectedToHovered).toBe('dì');
+    expect(describeKinship(document, 'me', 'momYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
+  });
+
+  it('describes northern Vietnamese cousin and sibling spouse terms', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'olderMaleCousin', 'vi')?.selectedToHovered).toBe('anh họ');
+    expect(describeKinship(document, 'me', 'olderFemaleCousin', 'vi')?.selectedToHovered).toBe('chị họ');
+    expect(describeKinship(document, 'me', 'youngerCousin', 'vi')?.selectedToHovered).toBe('em họ');
+    expect(describeKinship(document, 'me', 'olderBrotherWife', 'vi')?.selectedToHovered).toBe('chị dâu');
+    expect(describeKinship(document, 'me', 'olderSisterHusband', 'vi')?.selectedToHovered).toBe('anh rể');
+    expect(describeKinship(document, 'me', 'youngerBrotherWife', 'vi')?.selectedToHovered).toBe('em dâu');
+    expect(describeKinship(document, 'me', 'youngerSisterHusband', 'vi')?.selectedToHovered).toBe('em rể');
+    expect(describeKinship(document, 'me', 'olderMaleCousinWife', 'vi')?.selectedToHovered).toBe('chị dâu');
+    expect(describeKinship(document, 'me', 'olderFemaleCousinHusband', 'vi')?.selectedToHovered).toBe('anh rể');
+  });
+
+  it('describes northern Vietnamese spouse-family and co-in-law terms', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'wifeDad', 'vi')?.selectedToHovered).toBe('bố vợ');
+    expect(describeKinship(document, 'me', 'wifeMom', 'vi')?.selectedToHovered).toBe('mẹ vợ');
+    expect(describeKinship(document, 'wife', 'dad', 'vi')?.selectedToHovered).toBe('bố chồng');
+    expect(describeKinship(document, 'wife', 'mom', 'vi')?.selectedToHovered).toBe('mẹ chồng');
+    expect(describeKinship(document, 'me', 'wifeOlderBrother', 'vi')?.selectedToHovered).toBe('anh vợ');
+    expect(describeKinship(document, 'me', 'wifeOlderSister', 'vi')?.selectedToHovered).toBe('chị vợ');
+    expect(describeKinship(document, 'me', 'wifeYoungerSibling', 'vi')?.selectedToHovered).toBe('em vợ');
+    expect(describeKinship(document, 'wife', 'olderBrother', 'vi')?.selectedToHovered).toBe('anh chồng');
+    expect(describeKinship(document, 'wife', 'olderSister', 'vi')?.selectedToHovered).toBe('chị chồng');
+    expect(describeKinship(document, 'wife', 'youngerBrother', 'vi')?.selectedToHovered).toBe('em chồng');
+    expect(describeKinship(document, 'me', 'olderCoInLaw', 'vi')?.selectedToHovered).toBe('anh đồng hao');
+    expect(describeKinship(document, 'me', 'youngerCoInLaw', 'vi')?.selectedToHovered).toBe('em đồng hao');
+  });
+
+  it('describes northern Vietnamese descendant and in-law parent terms', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'me', 'grandson', 'vi')?.selectedToHovered).toBe('cháu nội');
+    expect(describeKinship(document, 'me', 'granddaughter', 'vi')?.selectedToHovered).toBe('cháu ngoại');
+    expect(describeKinship(document, 'me', 'greatGrandchild', 'vi')?.selectedToHovered).toBe('chắt');
+    expect(describeKinship(document, 'me', 'sonInLawDad', 'vi')?.selectedToHovered).toBe('ông thông gia');
+    expect(describeKinship(document, 'wife', 'sonInLawMom', 'vi')?.selectedToHovered).toBe('bà thông gia');
   });
 });
