@@ -75,6 +75,21 @@ p->b,a
     expect(Math.abs((younger?.x ?? 0) - (older?.x ?? 0))).toBeGreaterThanOrEqual(PERSON_NODE_WIDTH + PERSON_HORIZONTAL_GAP);
   });
 
+  it('uses configured horizontal spacing between sibling columns', async () => {
+    const customNodeSpacing = 120;
+    const document = parseFamilyTreeText(`
+p:Parent,g=u
+a:Older,g=u,b=1999
+b:Younger,g=u,b=2001
+p->a,b
+`);
+    const layout = await buildTreeLayout(document, new Set(), null, new Set(), PERSON_NODE_WIDTH, customNodeSpacing);
+    const older = layout.people.find((node) => node.id === 'a');
+    const younger = layout.people.find((node) => node.id === 'b');
+
+    expect((younger?.x ?? 0) - (older?.x ?? 0)).toBe(PERSON_NODE_WIDTH + customNodeSpacing);
+  });
+
   it('reserves sibling columns from descendant subtree width', async () => {
     const document = parseFamilyTreeText(`
 a:Parent,g=u
@@ -161,14 +176,30 @@ a+s2->c3,c4
     const layout = await buildTreeLayout(document, new Set(), 'a');
     const alpha = layout.people.find((person) => person.id === 'a');
     const shortcutTargets = alpha?.spouseShortcuts.map((shortcut) => {
-      return `${shortcut.personId}:${shortcut.family.id}:${shortcut.isChecked ? 'on' : 'off'}`;
+      return `${shortcut.personId}:${shortcut.family.id}:${shortcut.relationshipIndex ?? 'none'}:${shortcut.isChecked ? 'on' : 'off'}`;
     }) ?? [];
     const floatingFamilyIds = layout.families.map((family) => family.family.id);
 
     expect(alpha?.childLineToggle?.isCollapsed).toBe(false);
-    expect(shortcutTargets).toEqual(['s1:couple:a+s1:on', 's2:couple:a+s2:on']);
+    expect(shortcutTargets).toEqual(['s1:couple:a+s1:1:on', 's2:couple:a+s2:2:on']);
     expect(floatingFamilyIds).not.toContain('couple:a+s1');
     expect(floatingFamilyIds).not.toContain('couple:a+s2');
+  });
+
+  it('labels child connector metadata with the matching spouse index', async () => {
+    const document = parseFamilyTreeText(`
+a:Alpha,g=u
+s1:Spouse One,g=u
+s2:Spouse Two,g=u
+c1:Child One,g=u
+c2:Child Two,g=u
+a+s1->c1
+a+s2->c2
+`);
+    const layout = await buildTreeLayout(document, new Set(), 'a');
+
+    expect(layout.edges.find((edge) => edge.id === 'child:couple:a+s1:a:c1')?.relationshipIndex).toBe(1);
+    expect(layout.edges.find((edge) => edge.id === 'child:couple:a+s2:a:c2')?.relationshipIndex).toBe(2);
   });
 
   it('places a no-spouse descendant toggle inside the parent node', async () => {

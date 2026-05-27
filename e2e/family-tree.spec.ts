@@ -158,6 +158,10 @@ a+s2->c3,c4
   const secondSpouseItem = page.getByTestId('spouse-item-couple:a+s2');
   await expect(firstSpouseItem).toBeVisible();
   await expect(secondSpouseItem).toBeVisible();
+  await expect(firstSpouseItem.getByTestId('spouse-index-couple:a+s1')).toHaveText('1');
+  await expect(secondSpouseItem.getByTestId('spouse-index-couple:a+s2')).toHaveText('2');
+  await expect(page.locator('.react-flow__edge-text').filter({ hasText: /^1$/ })).toHaveCount(2);
+  await expect(page.locator('.react-flow__edge-text').filter({ hasText: /^2$/ })).toHaveCount(2);
   await expect(page.getByTestId('person-toggle-a')).toBeVisible();
   await expect(firstSpouseItem.getByTestId('spouse-family-checkbox-couple:a+s1')).toBeChecked();
   await expect(secondSpouseItem.getByTestId('spouse-family-checkbox-couple:a+s2')).toBeChecked();

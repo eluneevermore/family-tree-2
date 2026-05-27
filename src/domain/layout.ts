@@ -28,6 +28,7 @@ interface SlotLayoutOptions {
   readonly context: FocusedGraphContext;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
+  readonly personHorizontalGap: number;
   readonly personNodeWidth: number;
 }
 
@@ -37,13 +38,16 @@ interface SlotPlacement {
 }
 
 const MIN_SUBTREE_SPAN = 1;
+const FIRST_RELATIONSHIP_INDEX = 1;
+const PARENT_FAMILY_KEY_SEPARATOR = ':';
 
 export async function buildTreeLayout(
   document: FamilyTreeDocument,
   collapsedFamilyIds: ReadonlySet<string>,
   focusPersonId: string | null = null,
   collapsedPersonIds: ReadonlySet<string> = new Set(),
-  personNodeWidth: number = PERSON_NODE_WIDTH
+  personNodeWidth: number = PERSON_NODE_WIDTH,
+  personHorizontalGap: number = PERSON_HORIZONTAL_GAP
 ): Promise<TreeLayout> {
   const context = buildFocusedGraphContext(document, focusPersonId, collapsedFamilyIds, collapsedPersonIds);
   const generations = calculateFocusedGenerations(document, context);
@@ -55,6 +59,7 @@ export async function buildTreeLayout(
     childOrder,
     collapsedFamilyIds,
     collapsedPersonIds,
+    personHorizontalGap,
     personNodeWidth
   });
   const edges = buildLayoutEdges(document, context, collapsedFamilyIds, collapsedPersonIds);
@@ -150,6 +155,7 @@ interface PlacePeopleOptions {
   readonly childOrder: ReadonlyMap<string, ChildOrder>;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
+  readonly personHorizontalGap: number;
   readonly personNodeWidth: number;
 }
 
@@ -160,6 +166,7 @@ function placePeople({
   childOrder,
   collapsedFamilyIds,
   collapsedPersonIds,
+  personHorizontalGap,
   personNodeWidth
 }: PlacePeopleOptions): readonly LayoutPersonNode[] {
   const personOrder = buildPersonOrder(document);
@@ -168,6 +175,7 @@ function placePeople({
     context,
     collapsedFamilyIds,
     collapsedPersonIds,
+    personHorizontalGap,
     personNodeWidth
   }, childOrder, personOrder, generations);
   const personIds = Array.from(context.mainPersonIds)
@@ -191,7 +199,7 @@ function placePeople({
       id: person.id,
       person,
       generation,
-      x: getSlotX(placement.slot, personNodeWidth),
+      x: getSlotX(placement.slot, personNodeWidth, personHorizontalGap),
       y: CANVAS_PADDING_Y + generation * GENERATION_VERTICAL_GAP,
       spouseShortcuts: buildLayoutSpouseShortcuts(document, context, person.id, collapsedFamilyIds),
       ...(childLineToggle ? { childLineToggle } : {})
@@ -343,8 +351,8 @@ function getVisibleChildren({ document, context }: SlotLayoutOptions, family: Fa
   });
 }
 
-function getSlotX(slot: number, personNodeWidth: number): number {
-  return CANVAS_PADDING_X + slot * (personNodeWidth + PERSON_HORIZONTAL_GAP);
+function getSlotX(slot: number, personNodeWidth: number, personHorizontalGap: number): number {
+  return CANVAS_PADDING_X + slot * (personNodeWidth + personHorizontalGap);
 }
 
 function buildLayoutSpouseShortcuts(
@@ -353,7 +361,9 @@ function buildLayoutSpouseShortcuts(
   personId: string,
   collapsedFamilyIds: ReadonlySet<string>
 ): readonly LayoutSpouseShortcut[] {
-  return (context.spouseShortcutsByPersonId.get(personId) ?? []).flatMap((spouseId) => {
+  const spouseIds = context.spouseShortcutsByPersonId.get(personId) ?? [];
+  const shouldNumberSpouses = spouseIds.length > 1;
+  return spouseIds.flatMap((spouseId, spouseIndex) => {
     const family = findSpouseFamily(document, personId, spouseId);
     if (!family) {
       return [];
@@ -362,6 +372,7 @@ function buildLayoutSpouseShortcuts(
     return [{
       personId: spouseId,
       family,
+      ...(shouldNumberSpouses ? { relationshipIndex: spouseIndex + FIRST_RELATIONSHIP_INDEX } : {}),
       isChecked: !collapsedFamilyIds.has(family.id)
     }];
   });
@@ -430,6 +441,7 @@ function buildLayoutEdges(
   collapsedFamilyIds: ReadonlySet<string>,
   collapsedPersonIds: ReadonlySet<string>
 ): readonly LayoutEdge[] {
+  const relationshipIndexes = buildRelationshipIndexByParentFamily(document, context);
   return Array.from(document.families.values()).flatMap((family) => {
     if (!context.visibleFamilyIds.has(family.id)) {
       return [];
@@ -437,10 +449,30 @@ function buildLayoutEdges(
 
     const marriageEdges = buildMarriageEdges(family, context);
     const childEdges = isFamilyChildLineVisible(family, collapsedFamilyIds, collapsedPersonIds)
-      ? buildChildEdges(document, family, context)
+      ? buildChildEdges(document, family, context, relationshipIndexes)
       : [];
     return [...marriageEdges, ...childEdges];
   });
+}
+
+function buildRelationshipIndexByParentFamily(
+  document: FamilyTreeDocument,
+  context: FocusedGraphContext
+): ReadonlyMap<string, number> {
+  const relationshipIndexes = new Map<string, number>();
+  context.spouseShortcutsByPersonId.forEach((spouseIds, parentId) => {
+    if (spouseIds.length <= 1) {
+      return;
+    }
+
+    spouseIds.forEach((spouseId, spouseIndex) => {
+      const family = findSpouseFamily(document, parentId, spouseId);
+      if (family) {
+        relationshipIndexes.set(getParentFamilyKey(parentId, family.id), spouseIndex + FIRST_RELATIONSHIP_INDEX);
+      }
+    });
+  });
+  return relationshipIndexes;
 }
 
 function isFamilyChildLineVisible(
@@ -467,7 +499,8 @@ function buildMarriageEdges(family: FamilyRecord, context: FocusedGraphContext):
 function buildChildEdges(
   document: FamilyTreeDocument,
   family: FamilyRecord,
-  context: FocusedGraphContext
+  context: FocusedGraphContext,
+  relationshipIndexes: ReadonlyMap<string, number>
 ): readonly LayoutEdge[] {
   return family.parents.flatMap((parentId) => {
     if (!context.mainPersonIds.has(parentId)) {
@@ -479,14 +512,28 @@ function buildChildEdges(
         return [];
       }
 
+      const relationshipIndex = getRelationshipIndex(parentId, family.id, relationshipIndexes);
       return [{
         id: `child:${family.id}:${parentId}:${childId}`,
         source: parentId,
         target: childId,
-        type: 'child' as const
+        type: 'child' as const,
+        ...(relationshipIndex ? { relationshipIndex } : {})
       }];
     });
   });
+}
+
+function getRelationshipIndex(
+  parentId: string,
+  familyId: string,
+  relationshipIndexes: ReadonlyMap<string, number>
+): number | undefined {
+  return relationshipIndexes.get(getParentFamilyKey(parentId, familyId));
+}
+
+function getParentFamilyKey(parentId: string, familyId: string): string {
+  return `${parentId}${PARENT_FAMILY_KEY_SEPARATOR}${familyId}`;
 }
 
 function compareOptionalNumber(firstValue: number | null | undefined, secondValue: number | null | undefined): number {

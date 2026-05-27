@@ -15,10 +15,10 @@ import {
 } from '@xyflow/react';
 import { buildTreeLayout } from '../domain/layout';
 import { findMatchingPersonIds } from '../domain/visibility';
-import { PERSON_NODE_HEIGHT } from '../constants';
 import { suggestPeople } from '../services/suggestions';
 import {
   FamilyTreeDocument,
+  GraphConnectionStyle,
   LayoutPersonToggle,
   LayoutSpouseShortcut,
   PersonRecord,
@@ -31,7 +31,10 @@ interface GraphViewProps {
   readonly document: FamilyTreeDocument;
   readonly focusPersonId: string | null;
   readonly locale: LocaleStrings;
+  readonly connectionStyle: GraphConnectionStyle;
+  readonly nodeHeight: number;
   readonly nodeWidth: number;
+  readonly nodeSpacing: number;
   readonly selectedPersonId: string | null;
   readonly collapsedFamilyIds: ReadonlySet<string>;
   readonly collapsedPersonIds: ReadonlySet<string>;
@@ -56,6 +59,11 @@ interface NodePosition {
   readonly y: number;
 }
 
+const EDGE_LABEL_PADDING: [number, number] = [4, 2];
+const EDGE_LABEL_BORDER_RADIUS = 999;
+const EDGE_LABEL_FONT_SIZE = 11;
+const EDGE_LABEL_FONT_WEIGHT = 900;
+
 function GraphViewComponent(props: GraphViewProps): ReactElement {
   return (
     <ReactFlowProvider>
@@ -70,7 +78,10 @@ function GraphCanvas({
   document,
   focusPersonId,
   locale,
+  connectionStyle,
+  nodeHeight,
   nodeWidth,
+  nodeSpacing,
   selectedPersonId,
   collapsedFamilyIds,
   collapsedPersonIds,
@@ -100,6 +111,7 @@ function GraphCanvas({
     matchingPersonIds,
     selectedPersonId,
     locale,
+    nodeHeight,
     nodeWidth,
     onAddChild,
     onAddParent,
@@ -114,6 +126,7 @@ function GraphCanvas({
     layout,
     locale,
     matchingPersonIds,
+    nodeHeight,
     nodeWidth,
     onAddChild,
     onAddParent,
@@ -128,7 +141,7 @@ function GraphCanvas({
 
   useEffect(() => {
     let isCurrent = true;
-    buildTreeLayout(document, collapsedFamilyIds, focusPersonId, collapsedPersonIds, nodeWidth).then((nextLayout) => {
+    buildTreeLayout(document, collapsedFamilyIds, focusPersonId, collapsedPersonIds, nodeWidth, nodeSpacing).then((nextLayout) => {
       if (isCurrent) {
         setLayout(nextLayout);
       }
@@ -137,7 +150,7 @@ function GraphCanvas({
     return () => {
       isCurrent = false;
     };
-  }, [document, collapsedFamilyIds, collapsedPersonIds, focusPersonId, nodeWidth]);
+  }, [document, collapsedFamilyIds, collapsedPersonIds, focusPersonId, nodeSpacing, nodeWidth]);
 
   const focusPerson = useCallback((personId: string): void => {
     const node = reactFlow.getNode(personId);
@@ -145,11 +158,11 @@ function GraphCanvas({
       return;
     }
 
-    reactFlow.setCenter(node.position.x + nodeWidth / 2, node.position.y + PERSON_NODE_HEIGHT / 2, {
+    reactFlow.setCenter(node.position.x + nodeWidth / 2, node.position.y + nodeHeight / 2, {
       duration: 350,
       zoom: 1.15
     });
-  }, [nodeWidth, reactFlow]);
+  }, [nodeHeight, nodeWidth, reactFlow]);
 
   useEffect(() => {
     setNodes((currentNodes) => {
@@ -202,7 +215,7 @@ function GraphCanvas({
     }
   }, [focusPerson, focusPersonId, layout.people.length, reactFlow]);
 
-  const edges = useMemo(() => buildFlowEdges(layout), [layout]);
+  const edges = useMemo(() => buildFlowEdges(layout, connectionStyle), [connectionStyle, layout]);
 
   return (
     <section className="graph-panel" aria-label="Family tree graph">
@@ -284,6 +297,9 @@ function areGraphViewPropsEqual(previousProps: GraphViewProps, nextProps: GraphV
   return previousProps.document === nextProps.document
     && previousProps.focusPersonId === nextProps.focusPersonId
     && previousProps.locale === nextProps.locale
+    && previousProps.connectionStyle === nextProps.connectionStyle
+    && previousProps.nodeHeight === nextProps.nodeHeight
+    && previousProps.nodeSpacing === nextProps.nodeSpacing
     && previousProps.nodeWidth === nextProps.nodeWidth
     && previousProps.selectedPersonId === nextProps.selectedPersonId
     && previousProps.collapsedFamilyIds === nextProps.collapsedFamilyIds
@@ -296,6 +312,7 @@ interface BuildFlowNodesOptions {
   readonly matchingPersonIds: ReadonlySet<string>;
   readonly selectedPersonId: string | null;
   readonly locale: LocaleStrings;
+  readonly nodeHeight: number;
   readonly nodeWidth: number;
   readonly onAddChild: (person: PersonRecord) => void;
   readonly onAddParent: (person: PersonRecord) => void;
@@ -313,6 +330,7 @@ function buildFlowNodes({
   matchingPersonIds,
   selectedPersonId,
   locale,
+  nodeHeight,
   nodeWidth,
   onAddChild,
   onAddParent,
@@ -330,6 +348,7 @@ function buildFlowNodes({
     zIndex: 5,
     data: {
       person: layoutNode.person,
+      nodeHeight,
       nodeWidth,
       spouses: buildSpouseSummaries(document, layoutNode.spouseShortcuts),
       personToggle: buildPersonToggleSummary(layoutNode.childLineToggle),
@@ -361,6 +380,7 @@ function buildSpouseSummaries(
       name: spouse.name,
       familyId: shortcut.family.id,
       parentIds: shortcut.family.parents,
+      ...(shortcut.relationshipIndex ? { relationshipIndex: shortcut.relationshipIndex } : {}),
       hasChildren: shortcut.family.children.length > 0,
       isChecked: shortcut.isChecked
     }] : [];
@@ -376,13 +396,24 @@ function buildPersonToggleSummary(personToggle: LayoutPersonToggle | undefined):
     : undefined;
 }
 
-function buildFlowEdges(layout: TreeLayout): Edge[] {
+function buildFlowEdges(layout: TreeLayout, connectionStyle: GraphConnectionStyle): Edge[] {
   return layout.edges.map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    type: edge.type === 'marriage' ? 'straight' : 'smoothstep',
+    type: edge.type === 'marriage' ? 'straight' : getChildEdgeType(connectionStyle),
     interactionWidth: 4,
+    ...(edge.relationshipIndex ? {
+      label: String(edge.relationshipIndex),
+      labelBgBorderRadius: EDGE_LABEL_BORDER_RADIUS,
+      labelBgPadding: EDGE_LABEL_PADDING,
+      labelBgStyle: { fill: '#eff6ff', stroke: '#bfdbfe', strokeWidth: 1 },
+      labelStyle: {
+        fill: '#1d4ed8',
+        fontSize: EDGE_LABEL_FONT_SIZE,
+        fontWeight: EDGE_LABEL_FONT_WEIGHT
+      }
+    } : {}),
     markerEnd: edge.type === 'child'
       ? { type: MarkerType.ArrowClosed, color: '#2563eb', width: 18, height: 18 }
       : undefined,
@@ -390,6 +421,10 @@ function buildFlowEdges(layout: TreeLayout): Edge[] {
       ? { stroke: '#94a3b8', strokeWidth: 1.5, strokeDasharray: '7 8', opacity: 0.55 }
       : { stroke: '#2563eb', strokeWidth: 2 }
   }));
+}
+
+function getChildEdgeType(connectionStyle: GraphConnectionStyle): Edge['type'] {
+  return connectionStyle === 'curve' ? 'default' : connectionStyle;
 }
 
 function preserveCurrentPositions(

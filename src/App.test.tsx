@@ -110,18 +110,44 @@ describe('App', () => {
     expect(within(graphWorkspace).getByRole('status', { name: 'Kinship' })).toHaveTextContent(locales.en.relationshipHint);
   });
 
-  it('updates and persists graph node width from the graph footer', async () => {
+  it('keeps graph settings as a shared footer control in split view', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: locales.en.splitGraphView }));
+    const graphWorkspace = await screen.findByTestId('graph-workspace');
+
+    expect(within(graphWorkspace).getAllByRole('button', { name: locales.en.graphSettings })).toHaveLength(1);
+  });
+
+  it('updates and persists graph settings from the graph footer popup', async () => {
+    const user = userEvent.setup();
     render(<App />);
 
     const graphWorkspace = await screen.findByTestId('graph-workspace');
-    fireEvent.change(within(graphWorkspace).getByLabelText(locales.en.nodeWidth), {
+    await user.click(within(graphWorkspace).getByRole('button', { name: locales.en.graphSettings }));
+    const settingsDialog = within(graphWorkspace).getByRole('dialog', { name: locales.en.graphSettings });
+    fireEvent.change(within(settingsDialog).getByLabelText(locales.en.connectionStyle), {
+      target: { value: 'straight' }
+    });
+    fireEvent.change(within(settingsDialog).getByLabelText(locales.en.nodeWidth), {
       target: { value: '220' }
+    });
+    fireEvent.change(within(settingsDialog).getByLabelText(locales.en.nodeHeight), {
+      target: { value: '128' }
+    });
+    fireEvent.change(within(settingsDialog).getByLabelText(locales.en.nodeSpacing), {
+      target: { value: '104' }
     });
 
     await waitFor(() => {
+      expect(localStorage.getItem(STORAGE_SITE_CONFIGURATION_KEY)).toContain('"connectionStyle":"straight"');
       expect(localStorage.getItem(STORAGE_SITE_CONFIGURATION_KEY)).toContain('"personNodeWidth":220');
+      expect(localStorage.getItem(STORAGE_SITE_CONFIGURATION_KEY)).toContain('"personNodeHeight":128');
+      expect(localStorage.getItem(STORAGE_SITE_CONFIGURATION_KEY)).toContain('"personHorizontalGap":104');
     });
     expect(await screen.findByTestId('person-node-f')).toHaveStyle({ width: '220px' });
+    expect(await screen.findByTestId('person-node-f')).toHaveStyle({ minHeight: '128px' });
   });
 
   it('resizes the editor panel in combined view', async () => {

@@ -10,6 +10,7 @@ export interface SpouseSummary {
   readonly name: string;
   readonly familyId: string;
   readonly parentIds: readonly string[];
+  readonly relationshipIndex?: number;
   readonly hasChildren: boolean;
   readonly isChecked: boolean;
 }
@@ -21,6 +22,7 @@ export interface PersonToggleSummary {
 
 export interface PersonNodeData extends Record<string, unknown> {
   readonly person: PersonRecord;
+  readonly nodeHeight: number;
   readonly nodeWidth: number;
   readonly spouses: readonly SpouseSummary[];
   readonly personToggle?: PersonToggleSummary;
@@ -86,7 +88,7 @@ export function PersonNode({ data }: NodeProps): ReactElement {
       onClick={() => nodeData.onSelectPerson(nodeData.person.id)}
       onMouseEnter={() => nodeData.onHoverPerson(nodeData.person.id)}
       onMouseLeave={() => nodeData.onHoverPerson(null)}
-      style={{ borderColor, width: nodeData.nodeWidth }}
+      style={{ borderColor, minHeight: nodeData.nodeHeight, width: nodeData.nodeWidth }}
     >
       <Handle type="target" position={Position.Top} className="flow-handle" />
       <Handle type="source" position={Position.Bottom} className="flow-handle" />
@@ -142,6 +144,14 @@ export function PersonNode({ data }: NodeProps): ReactElement {
                 }}
                 type="button"
               >
+                {spouse.relationshipIndex ? (
+                  <span
+                    className="spouse-index"
+                    data-testid={`spouse-index-${spouse.familyId}`}
+                  >
+                    {spouse.relationshipIndex}
+                  </span>
+                ) : null}
                 <Heart aria-hidden="true" className="spouse-chip-icon" size={12} />
                 {spouse.name}
               </button>

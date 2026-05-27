@@ -2,6 +2,8 @@ export type Gender = 'male' | 'female' | 'other' | 'unknown';
 
 export type Language = 'en' | 'vi';
 
+export type GraphConnectionStyle = 'curve' | 'smoothstep' | 'straight' | 'step';
+
 export type DiagnosticSeverity = 'error' | 'warning';
 
 export interface ParseDiagnostic {
@@ -93,6 +95,7 @@ export interface LayoutPersonNode {
 export interface LayoutSpouseShortcut {
   readonly personId: string;
   readonly family: FamilyRecord;
+  readonly relationshipIndex?: number;
   readonly isChecked: boolean;
 }
 
@@ -114,6 +117,7 @@ export interface LayoutEdge {
   readonly source: string;
   readonly target: string;
   readonly type: 'marriage' | 'child';
+  readonly relationshipIndex?: number;
 }
 
 export interface TreeLayout {

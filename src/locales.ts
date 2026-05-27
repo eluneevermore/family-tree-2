@@ -9,7 +9,15 @@ export interface LocaleStrings {
   readonly newFamilyTreeName: string;
   readonly renameFamilyTreeName: string;
   readonly confirmDeleteFamilyTree: (name: string) => string;
+  readonly graphSettings: string;
+  readonly connectionStyle: string;
+  readonly connectionCurve: string;
+  readonly connectionSmoothStep: string;
+  readonly connectionStraight: string;
+  readonly connectionStep: string;
+  readonly nodeHeight: string;
   readonly nodeWidth: string;
+  readonly nodeSpacing: string;
   readonly searchPeople: string;
   readonly searchSuggestions: string;
   readonly clearSearch: string;
@@ -83,7 +91,15 @@ export const locales: Record<Language, LocaleStrings> = {
     newFamilyTreeName: 'New family tree name',
     renameFamilyTreeName: 'Rename family tree',
     confirmDeleteFamilyTree: (name) => `Delete "${name}"? This cannot be undone.`,
+    graphSettings: 'Graph settings',
+    connectionStyle: 'Connection style',
+    connectionCurve: 'Curve',
+    connectionSmoothStep: 'Smooth step',
+    connectionStraight: 'Straight',
+    connectionStep: 'Step',
+    nodeHeight: 'Node height',
     nodeWidth: 'Node width',
+    nodeSpacing: 'Node spacing',
     searchPeople: 'Search people',
     searchSuggestions: 'Search suggestions',
     clearSearch: 'Clear search',
@@ -155,7 +171,15 @@ export const locales: Record<Language, LocaleStrings> = {
     newFamilyTreeName: 'Tên gia phả mới',
     renameFamilyTreeName: 'Đổi tên gia phả',
     confirmDeleteFamilyTree: (name) => `Xoá "${name}"? Không thể hoàn tác.`,
+    graphSettings: 'Cài đặt đồ thị',
+    connectionStyle: 'Kiểu đường nối',
+    connectionCurve: 'Đường cong',
+    connectionSmoothStep: 'Bo góc',
+    connectionStraight: 'Đường thẳng',
+    connectionStep: 'Gấp khúc',
+    nodeHeight: 'Chiều cao nút',
     nodeWidth: 'Độ rộng nút',
+    nodeSpacing: 'Khoảng cách nút',
     searchPeople: 'Tìm người',
     searchSuggestions: 'Gợi ý tìm kiếm',
     clearSearch: 'Xoá tìm kiếm',

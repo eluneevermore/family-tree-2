@@ -530,6 +530,66 @@ button {
   color: #0f172a;
 }
 
+.graph-settings {
+  position: relative;
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.graph-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+}
+
+.graph-settings-button:hover,
+.graph-settings-button[aria-expanded="true"] {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.graph-settings-popover {
+  position: absolute;
+  z-index: 15;
+  bottom: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 10px;
+  width: min(260px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgb(15 23 42 / 16%);
+}
+
+.graph-setting-field {
+  display: grid;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.graph-setting-field input,
+.graph-setting-field select {
+  width: 100%;
+  height: 32px;
+  border: 1px solid #dbe3ef;
+  border-radius: 7px;
+  padding: 4px 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .graph-rearrange-button {
   position: absolute;
   z-index: 12;
@@ -554,12 +614,13 @@ button {
 }
 
 .kinship-footer {
+  position: relative;
   display: flex;
   gap: 12px;
   align-items: start;
   justify-content: space-between;
   max-height: 170px;
-  overflow: auto;
+  overflow: visible;
   border-top: 1px solid #edf2f7;
   padding: 10px 12px;
   background: #f8fafc;
@@ -605,29 +666,6 @@ button {
 
 .kinship-footer span {
   color: #1d4ed8;
-  font-weight: 800;
-}
-
-.node-width-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-  color: #475569;
-  font-size: 11px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.node-width-control input {
-  width: 72px;
-  height: 28px;
-  border: 1px solid #dbe3ef;
-  border-radius: 7px;
-  padding: 3px 7px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 12px;
   font-weight: 800;
 }
 
@@ -762,6 +800,20 @@ button {
 .spouse-chip-icon {
   flex: 0 0 auto;
   color: #1d4ed8;
+}
+
+.spouse-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .spouse-chip:hover {

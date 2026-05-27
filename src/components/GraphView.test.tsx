@@ -56,6 +56,16 @@ describe('GraphView', () => {
     expect(await screen.findByText('[1970 - 2010]')).toBeInTheDocument();
   });
 
+  it('applies configured person node dimensions', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    renderGraphView({ document, nodeHeight: 128, nodeWidth: 220 });
+
+    expect(await screen.findByTestId('person-node-dad')).toHaveStyle({
+      minHeight: '128px',
+      width: '220px'
+    });
+  });
+
   it('shows a hoverable note mark on person nodes with notes', async () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
     renderGraphView({ document });
@@ -87,6 +97,42 @@ describe('GraphView', () => {
     expect(onTogglePerson).toHaveBeenCalledWith('dad');
     expect(onToggleFamily).toHaveBeenCalledWith('couple:dad+mom');
     expect(onFocusPerson).toHaveBeenCalledWith('mom');
+  });
+
+  it('shows spouse indexes when a person has multiple spouse shortcuts', async () => {
+    const document = parseFamilyTreeText(`
+a:Alpha,g=u
+s1:Spouse One,g=u
+s2:Spouse Two,g=u
+c1:Child One,g=u
+c2:Child Two,g=u
+a+s1->c1
+a+s2->c2
+`);
+    renderGraphView({ document, focusPersonId: 'a' });
+
+    const firstSpouse = await screen.findByTestId('spouse-item-couple:a+s1');
+    const secondSpouse = await screen.findByTestId('spouse-item-couple:a+s2');
+
+    expect(within(firstSpouse).getByTestId('spouse-index-couple:a+s1')).toHaveTextContent('1');
+    expect(within(secondSpouse).getByTestId('spouse-index-couple:a+s2')).toHaveTextContent('2');
+  });
+
+  it('shows a spouse item when that spouse is also visible as a person node', async () => {
+    const document = parseFamilyTreeText(`
+p:Parent,g=u
+a:Alpha,g=u
+s:Spouse,g=u
+c:Child,g=u
+p->a,s
+a+s->c
+`);
+    renderGraphView({ document, focusPersonId: 'a' });
+
+    const alphaNode = await screen.findByTestId('person-node-a');
+
+    expect(await screen.findByTestId('person-node-s')).toBeInTheDocument();
+    expect(within(alphaNode).getByTestId('spouse-item-couple:a+s')).toBeInTheDocument();
   });
 
   it('confirms before resetting manual graph positions', async () => {
@@ -167,7 +213,10 @@ function renderGraphView(options: RenderGraphViewOptions): ReturnType<typeof ren
       document={options.document}
       focusPersonId={options.focusPersonId ?? 'me'}
       locale={options.locale ?? locales.en}
+      connectionStyle={options.connectionStyle ?? 'smoothstep'}
+      nodeHeight={options.nodeHeight ?? 88}
       nodeWidth={options.nodeWidth ?? 172}
+      nodeSpacing={options.nodeSpacing ?? 72}
       selectedPersonId={options.selectedPersonId ?? null}
       onAddChild={options.onAddChild ?? vi.fn()}
       onAddParent={options.onAddParent ?? vi.fn()}

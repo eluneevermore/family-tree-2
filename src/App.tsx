@@ -1,14 +1,20 @@
-import { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Pencil, Trash2, Upload } from 'lucide-react';
+import { ChangeEvent, CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Pencil, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
 import { EditModal, type EditMode } from './components/EditModal';
 import {
   DEFAULT_TREE_TEXT,
   EXPORT_FILE_NAME,
+  MAX_PERSON_HORIZONTAL_GAP,
+  MAX_PERSON_NODE_HEIGHT,
   MAX_PERSON_NODE_WIDTH,
+  MIN_PERSON_HORIZONTAL_GAP,
+  MIN_PERSON_NODE_HEIGHT,
   MIN_PERSON_NODE_WIDTH,
   NEW_TREE_TEXT,
+  PERSON_HORIZONTAL_GAP_STEP,
+  PERSON_NODE_HEIGHT_STEP,
   PERSON_NODE_WIDTH_STEP,
   STORAGE_LANGUAGE_KEY,
   STORAGE_VIEW_MODE_KEY
@@ -21,10 +27,12 @@ import { FamilyTreeSummary, FamilyTreeStore, LocalStorageFamilyTreeStore } from 
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './services/legacy-importer';
 import { parseFamilyTreeText } from './services/parser';
 import {
+  clampPersonHorizontalGap,
+  clampPersonNodeHeight,
   clampPersonNodeWidth,
   LocalStorageSiteConfigurationStore
 } from './services/site-configuration-store';
-import { FamilyTreeDocument, FamilyTreeEdit, KinshipResult, Language, PersonRecord } from './types';
+import { FamilyTreeDocument, FamilyTreeEdit, GraphConnectionStyle, KinshipResult, Language, PersonRecord } from './types';
 
 type ViewMode = 'both' | 'text' | 'graph';
 type TextUpdate = string | ((currentText: string) => string);
@@ -74,6 +82,9 @@ function App(): ReactElement {
   const [pendingEdit, setPendingEdit] = useState<PendingEdit | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const text = familyTreeState.text;
+  const connectionStyle = siteConfiguration.connectionStyle;
+  const nodeHeight = siteConfiguration.personNodeHeight;
+  const nodeSpacing = siteConfiguration.personHorizontalGap;
   const nodeWidth = siteConfiguration.personNodeWidth;
   const document = useMemo(() => parseFamilyTreeText(text), [text]);
   const locale = locales[language];
@@ -302,6 +313,27 @@ function App(): ReactElement {
     }));
   }, []);
 
+  const handleNodeHeightChange = useCallback((nextHeight: number): void => {
+    setSiteConfiguration((currentConfiguration) => ({
+      ...currentConfiguration,
+      personNodeHeight: clampPersonNodeHeight(nextHeight)
+    }));
+  }, []);
+
+  const handleConnectionStyleChange = useCallback((nextConnectionStyle: GraphConnectionStyle): void => {
+    setSiteConfiguration((currentConfiguration) => ({
+      ...currentConfiguration,
+      connectionStyle: nextConnectionStyle
+    }));
+  }, []);
+
+  const handleNodeSpacingChange = useCallback((nextSpacing: number): void => {
+    setSiteConfiguration((currentConfiguration) => ({
+      ...currentConfiguration,
+      personHorizontalGap: clampPersonHorizontalGap(nextSpacing)
+    }));
+  }, []);
+
   const handleEditorResizeStart = useCallback((event: ReactPointerEvent<HTMLDivElement>): void => {
     if (viewMode !== 'both') {
       return;
@@ -476,9 +508,12 @@ function App(): ReactElement {
                   <GraphView
                     collapsedFamilyIds={graphView.collapsedFamilyIds}
                     collapsedPersonIds={graphView.collapsedPersonIds}
+                    connectionStyle={connectionStyle}
                     document={document}
                     focusPersonId={graphView.focusPersonId}
                     locale={locale}
+                    nodeHeight={nodeHeight}
+                    nodeSpacing={nodeSpacing}
                     nodeWidth={nodeWidth}
                     selectedPersonId={selectedPersonId}
                     onAddChild={(person) => setPendingEdit({ mode: 'add-child', person })}
@@ -496,10 +531,16 @@ function App(): ReactElement {
               ))}
             </div>
             <KinshipFooter
+              connectionStyle={connectionStyle}
               document={document}
               kinship={kinship}
               locale={locale}
+              nodeHeight={nodeHeight}
+              nodeSpacing={nodeSpacing}
               nodeWidth={nodeWidth}
+              onConnectionStyleChange={handleConnectionStyleChange}
+              onNodeHeightChange={handleNodeHeightChange}
+              onNodeSpacingChange={handleNodeSpacingChange}
               onNodeWidthChange={handleNodeWidthChange}
             />
           </div>
@@ -568,20 +609,46 @@ function getFiniteClientX(clientX: number, fallbackClientX: number): number {
 }
 
 interface KinshipFooterProps {
+  readonly connectionStyle: GraphConnectionStyle;
   readonly document: FamilyTreeDocument;
   readonly kinship: KinshipResult | null;
   readonly locale: LocaleStrings;
+  readonly nodeHeight: number;
+  readonly nodeSpacing: number;
   readonly nodeWidth: number;
+  readonly onConnectionStyleChange: (connectionStyle: GraphConnectionStyle) => void;
+  readonly onNodeHeightChange: (height: number) => void;
+  readonly onNodeSpacingChange: (spacing: number) => void;
   readonly onNodeWidthChange: (width: number) => void;
 }
 
 function KinshipFooter({
+  connectionStyle,
   document,
   kinship,
   locale,
+  nodeHeight,
+  nodeSpacing,
   nodeWidth,
+  onConnectionStyleChange,
+  onNodeHeightChange,
+  onNodeSpacingChange,
   onNodeWidthChange
 }: KinshipFooterProps): ReactElement | null {
+  const graphSettings = (
+    <GraphSettingsControl
+      connectionStyle={connectionStyle}
+      locale={locale}
+      nodeHeight={nodeHeight}
+      nodeSpacing={nodeSpacing}
+      nodeWidth={nodeWidth}
+      onConnectionStyleChange={onConnectionStyleChange}
+      onNodeHeightChange={onNodeHeightChange}
+      onNodeSpacingChange={onNodeSpacingChange}
+      onNodeWidthChange={onNodeWidthChange}
+    />
+  );
+
   if (kinship) {
     return (
       <footer className="kinship-footer" role="status" aria-label={KINSHIP_STATUS_LABEL}>
@@ -600,7 +667,7 @@ function KinshipFooter({
             targetName={document.people.get(kinship.selectedPersonId)?.name}
           />
         </div>
-        <NodeWidthControl locale={locale} nodeWidth={nodeWidth} onNodeWidthChange={onNodeWidthChange} />
+        {graphSettings}
       </footer>
     );
   }
@@ -608,35 +675,113 @@ function KinshipFooter({
   return (
     <footer className="kinship-footer kinship-footer-muted" role="status" aria-label={KINSHIP_STATUS_LABEL}>
       <div className="kinship-footer-body">{locale.relationshipHint}</div>
-      <NodeWidthControl locale={locale} nodeWidth={nodeWidth} onNodeWidthChange={onNodeWidthChange} />
+      {graphSettings}
     </footer>
   );
 }
 
-interface NodeWidthControlProps {
+interface GraphSettingsControlProps {
+  readonly connectionStyle: GraphConnectionStyle;
   readonly locale: LocaleStrings;
+  readonly nodeHeight: number;
+  readonly nodeSpacing: number;
   readonly nodeWidth: number;
+  readonly onConnectionStyleChange: (connectionStyle: GraphConnectionStyle) => void;
+  readonly onNodeHeightChange: (height: number) => void;
+  readonly onNodeSpacingChange: (spacing: number) => void;
   readonly onNodeWidthChange: (width: number) => void;
 }
 
-function NodeWidthControl({
+function GraphSettingsControl({
+  connectionStyle,
   locale,
+  nodeHeight,
+  nodeSpacing,
   nodeWidth,
+  onConnectionStyleChange,
+  onNodeHeightChange,
+  onNodeSpacingChange,
   onNodeWidthChange
-}: NodeWidthControlProps): ReactElement {
+}: GraphSettingsControlProps): ReactElement {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (event.key === 'Escape') {
+      setIsSettingsOpen(false);
+    }
+  }
+
   return (
-    <label className="node-width-control">
-      <span>{locale.nodeWidth}</span>
-      <input
-        aria-label={locale.nodeWidth}
-        max={MAX_PERSON_NODE_WIDTH}
-        min={MIN_PERSON_NODE_WIDTH}
-        onChange={(event) => onNodeWidthChange(Number(event.target.value))}
-        step={PERSON_NODE_WIDTH_STEP}
-        type="number"
-        value={nodeWidth}
-      />
-    </label>
+    <div className="graph-settings">
+      <button
+        aria-expanded={isSettingsOpen}
+        aria-label={locale.graphSettings}
+        className="graph-settings-button"
+        onClick={() => setIsSettingsOpen((isOpen) => !isOpen)}
+        title={locale.graphSettings}
+        type="button"
+      >
+        <SlidersHorizontal size={15} />
+      </button>
+      {isSettingsOpen ? (
+        <div
+          aria-label={locale.graphSettings}
+          className="graph-settings-popover"
+          onKeyDown={handleKeyDown}
+          role="dialog"
+        >
+          <label className="graph-setting-field">
+            <span>{locale.connectionStyle}</span>
+            <select
+              aria-label={locale.connectionStyle}
+              onChange={(event) => onConnectionStyleChange(event.target.value as GraphConnectionStyle)}
+              value={connectionStyle}
+            >
+              <option value="curve">{locale.connectionCurve}</option>
+              <option value="smoothstep">{locale.connectionSmoothStep}</option>
+              <option value="straight">{locale.connectionStraight}</option>
+              <option value="step">{locale.connectionStep}</option>
+            </select>
+          </label>
+          <label className="graph-setting-field">
+            <span>{locale.nodeWidth}</span>
+            <input
+              aria-label={locale.nodeWidth}
+              max={MAX_PERSON_NODE_WIDTH}
+              min={MIN_PERSON_NODE_WIDTH}
+              onChange={(event) => onNodeWidthChange(Number(event.target.value))}
+              step={PERSON_NODE_WIDTH_STEP}
+              type="number"
+              value={nodeWidth}
+            />
+          </label>
+          <label className="graph-setting-field">
+            <span>{locale.nodeHeight}</span>
+            <input
+              aria-label={locale.nodeHeight}
+              max={MAX_PERSON_NODE_HEIGHT}
+              min={MIN_PERSON_NODE_HEIGHT}
+              onChange={(event) => onNodeHeightChange(Number(event.target.value))}
+              step={PERSON_NODE_HEIGHT_STEP}
+              type="number"
+              value={nodeHeight}
+            />
+          </label>
+          <label className="graph-setting-field">
+            <span>{locale.nodeSpacing}</span>
+            <input
+              aria-label={locale.nodeSpacing}
+              max={MAX_PERSON_HORIZONTAL_GAP}
+              min={MIN_PERSON_HORIZONTAL_GAP}
+              onChange={(event) => onNodeSpacingChange(Number(event.target.value))}
+              step={PERSON_HORIZONTAL_GAP_STEP}
+              type="number"
+              value={nodeSpacing}
+            />
+          </label>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -188,7 +188,7 @@ function collectSpouseShortcuts(
 
     family.parents.forEach((parentId) => {
       const spouseId = family.parents.find((candidateId) => candidateId !== parentId);
-      if (!spouseId || !mainPersonIds.has(parentId) || mainPersonIds.has(spouseId) || hiddenPersonIds.has(spouseId)) {
+      if (!spouseId || !mainPersonIds.has(parentId) || hiddenPersonIds.has(spouseId)) {
         return;
       }
 

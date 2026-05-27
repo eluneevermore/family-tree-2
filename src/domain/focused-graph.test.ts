@@ -37,6 +37,21 @@ describe('focused graph context', () => {
     expect(context.spouseShortcutsByPersonId.get('dad')).toEqual(['mom']);
   });
 
+  it('keeps a spouse shortcut when the spouse is also visible as a main node', () => {
+    const document = parseFamilyTreeText(`
+p:Parent,g=u
+a:Alpha,g=u
+s:Spouse,g=u
+c:Child,g=u
+p->a,s
+a+s->c
+`);
+    const context = buildFocusedGraphContext(document, 'a', new Set());
+
+    expect(context.mainPersonIds.has('s')).toBe(true);
+    expect(context.spouseShortcutsByPersonId.get('a')).toEqual(['s']);
+  });
+
   it('switches visible ancestry when the spouse becomes focused', async () => {
     const document = parseFamilyTreeText(SPOUSE_ANCESTRY_TEXT);
     const layout = await buildTreeLayout(document, new Set(), 'mom');
