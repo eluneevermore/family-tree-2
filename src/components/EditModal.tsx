@@ -24,6 +24,8 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
   const [name, setName] = useState('');
   const [gender, setGender] = useState<Gender>('unknown');
   const [born, setBorn] = useState('');
+  const [died, setDied] = useState('');
+  const [note, setNote] = useState('');
   const [familyContext, setFamilyContext] = useState<string>('single');
   const existingIds = useMemo(() => new Set(document.people.keys()), [document.people]);
   const memberFamilies = useMemo(() => {
@@ -37,7 +39,9 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    const personDraft = memberMode === 'new' ? createPersonDraft(name, gender, born, existingIds) : null;
+    const personDraft = memberMode === 'new'
+      ? createPersonDraft({ born, died, existingIds, gender, name, note })
+      : null;
     const targetPersonId = personDraft?.id ?? selectedPersonId;
     if (!targetPersonId) {
       return;
@@ -125,6 +129,14 @@ export function EditModal({ document, locale, mode, person, onClose, onSubmitEdi
               {locale.born}
               <input value={born} onChange={(event) => setBorn(event.target.value)} placeholder="1950" />
             </label>
+            <label className="field-label">
+              {locale.died}
+              <input value={died} onChange={(event) => setDied(event.target.value)} placeholder="2020" />
+            </label>
+            <label className="field-label field-label-wide">
+              {locale.note}
+              <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} />
+            </label>
           </div>
         ) : (
           <div className="existing-picker">
@@ -178,16 +190,22 @@ function getModalHeading(locale: LocaleStrings, mode: EditMode, name: string): s
   return mode === 'add-child' ? locale.addChildFor(name) : locale.addParentFor(name);
 }
 
-function createPersonDraft(
-  name: string,
-  gender: Gender,
-  born: string,
-  existingIds: ReadonlySet<string>
-): PersonDraft {
+interface CreatePersonDraftOptions {
+  readonly name: string;
+  readonly gender: Gender;
+  readonly born: string;
+  readonly died: string;
+  readonly note: string;
+  readonly existingIds: ReadonlySet<string>;
+}
+
+function createPersonDraft(options: CreatePersonDraftOptions): PersonDraft {
   return {
-    id: createUniquePersonId(name, existingIds),
-    name,
-    gender,
-    born: born.trim() || undefined
+    id: createUniquePersonId(options.name, options.existingIds),
+    name: options.name,
+    gender: options.gender,
+    born: options.born.trim() || undefined,
+    died: options.died.trim() || undefined,
+    note: options.note.trim() || undefined
   };
 }

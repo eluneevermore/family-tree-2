@@ -1,5 +1,5 @@
 import { ChangeEvent, CSSProperties, PointerEvent as ReactPointerEvent, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Upload } from 'lucide-react';
+import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Pencil, Trash2, Upload } from 'lucide-react';
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
 import { EditModal, type EditMode } from './components/EditModal';
@@ -78,6 +78,7 @@ function App(): ReactElement {
   const document = useMemo(() => parseFamilyTreeText(text), [text]);
   const locale = locales[language];
   const hasSplitGraphView = graphViews.length > 1;
+  const canDeleteFamilyTree = familyTreeState.trees.length > 1;
   const kinship = useMemo(() => {
     return describeKinship(document, selectedPersonId, hoveredPersonId, language);
   }, [document, hoveredPersonId, language, selectedPersonId]);
@@ -240,6 +241,60 @@ function App(): ReactElement {
     resetGraphContext(null);
   }, [familyTreeState.activeTreeId, familyTreeStore, locale.newFamilyTreeName, resetGraphContext]);
 
+  const handleRenameActiveFamilyTree = useCallback((): void => {
+    const activeTree = familyTreeState.trees.find((tree) => tree.id === familyTreeState.activeTreeId);
+    if (!activeTree) {
+      return;
+    }
+
+    const name = window.prompt(locale.renameFamilyTreeName, activeTree.name)?.trim();
+    if (!name) {
+      return;
+    }
+
+    const renamedTree = familyTreeStore.renameTree(activeTree.id, name);
+    if (!renamedTree) {
+      return;
+    }
+
+    setFamilyTreeState({
+      activeTreeId: renamedTree.id,
+      trees: familyTreeStore.listTrees(),
+      text: familyTreeState.text
+    });
+  }, [
+    familyTreeState.activeTreeId,
+    familyTreeState.text,
+    familyTreeState.trees,
+    familyTreeStore,
+    locale.renameFamilyTreeName
+  ]);
+
+  const handleDeleteActiveFamilyTree = useCallback((): void => {
+    const activeTree = familyTreeState.trees.find((tree) => tree.id === familyTreeState.activeTreeId);
+    if (!activeTree || !canDeleteFamilyTree || !window.confirm(locale.confirmDeleteFamilyTree(activeTree.name))) {
+      return;
+    }
+
+    const nextActiveTree = familyTreeStore.deleteTree(activeTree.id);
+    if (!nextActiveTree) {
+      return;
+    }
+
+    setFamilyTreeState({
+      activeTreeId: nextActiveTree.id,
+      trees: familyTreeStore.listTrees(),
+      text: nextActiveTree.text
+    });
+    resetGraphContext(null);
+  }, [
+    canDeleteFamilyTree,
+    familyTreeState.activeTreeId,
+    familyTreeStore,
+    locale,
+    resetGraphContext
+  ]);
+
   const handleNodeWidthChange = useCallback((nextWidth: number): void => {
     setSiteConfiguration((currentConfiguration) => ({
       ...currentConfiguration,
@@ -311,17 +366,38 @@ function App(): ReactElement {
         <div className="brand">
           <GitBranch size={20} />
           <h1>{locale.appTitle}</h1>
-          <select
-            aria-label={locale.familyTree}
-            className="tree-select"
-            onChange={handleFamilyTreeSelection}
-            value={familyTreeState.activeTreeId}
-          >
-            {familyTreeState.trees.map((tree) => (
-              <option key={tree.id} value={tree.id}>{tree.name}</option>
-            ))}
-            <option value={CREATE_TREE_OPTION_VALUE}>{locale.createFamilyTree}</option>
-          </select>
+          <div className="tree-controls">
+            <select
+              aria-label={locale.familyTree}
+              className="tree-select"
+              onChange={handleFamilyTreeSelection}
+              value={familyTreeState.activeTreeId}
+            >
+              {familyTreeState.trees.map((tree) => (
+                <option key={tree.id} value={tree.id}>{tree.name}</option>
+              ))}
+              <option value={CREATE_TREE_OPTION_VALUE}>{locale.createFamilyTree}</option>
+            </select>
+            <button
+              aria-label={locale.renameFamilyTree}
+              className="toolbar-button tree-action-button"
+              onClick={handleRenameActiveFamilyTree}
+              title={locale.renameFamilyTree}
+              type="button"
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              aria-label={locale.deleteFamilyTree}
+              className="toolbar-button tree-action-button"
+              disabled={!canDeleteFamilyTree}
+              onClick={handleDeleteActiveFamilyTree}
+              title={locale.deleteFamilyTree}
+              type="button"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
 
         <div className="view-switcher" aria-label={locale.viewMode}>

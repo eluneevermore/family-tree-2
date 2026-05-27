@@ -42,6 +42,7 @@ function getVietnameseRelationshipLabels(
     ...getVietnameseAuntUncleLabels(document, source, target),
     ...getVietnameseAuntUncleSpouseLabels(document, source, target),
     ...getVietnameseNieceNephewLabels(document, source, target),
+    ...getVietnameseNieceNephewSpouseLabels(document, source, target),
     ...getVietnameseCousinLabels(document, source, target),
     ...getVietnameseRelativeSpouseLabels(document, source, target),
     ...getVietnameseChildSpouseLabels(document, source, target),
@@ -137,9 +138,19 @@ function getVietnameseNieceNephewLabels(
   source: PersonRecord,
   target: PersonRecord
 ): readonly string[] {
-  const isChildOfSibling = getParentLinks(document, target.id)
-    .some((parentLink) => areSiblings(document, source.id, parentLink.parent.id));
-  return isChildOfSibling ? ['cháu'] : [];
+  return isVietnameseNieceNephew(document, source.id, target.id) ? ['cháu'] : [];
+}
+
+function getVietnameseNieceNephewSpouseLabels(
+  document: FamilyTreeDocument,
+  source: PersonRecord,
+  target: PersonRecord
+): readonly string[] {
+  return getSpouseLinks(document, target.id).flatMap((spouseLink) => {
+    return canCallAsNieceNephewSpouse(document, source, spouseLink.spouse)
+      ? [formatVietnameseNieceNephewSpouse(spouseLink.spouse, target)]
+      : [];
+  });
 }
 
 function getVietnameseCousinLabels(
@@ -233,6 +244,28 @@ function getVietnameseCoInLawLabels(
   });
 
   return hasSiblingSpouses ? [formatVietnameseCoInLaw(document, source, target)] : [];
+}
+
+function canCallAsNieceNephewSpouse(
+  document: FamilyTreeDocument,
+  source: PersonRecord,
+  nieceOrNephew: PersonRecord
+): boolean {
+  if (isVietnameseNieceNephew(document, source.id, nieceOrNephew.id)) {
+    return true;
+  }
+
+  return getSpouseLinks(document, source.id)
+    .some((spouseLink) => isVietnameseNieceNephew(document, spouseLink.spouse.id, nieceOrNephew.id));
+}
+
+function isVietnameseNieceNephew(
+  document: FamilyTreeDocument,
+  sourcePersonId: string,
+  targetPersonId: string
+): boolean {
+  return getParentLinks(document, targetPersonId)
+    .some((parentLink) => areSiblings(document, sourcePersonId, parentLink.parent.id));
 }
 
 function getVietnameseMirroredFamilySources(
@@ -475,6 +508,18 @@ function formatVietnameseGrandchildSpouse(grandchild: PersonRecord, target: Pers
   }
 
   if (grandchild.gender === 'female' && target.gender === 'male') {
+    return 'cháu rể';
+  }
+
+  return 'cháu dâu/rể';
+}
+
+function formatVietnameseNieceNephewSpouse(nieceOrNephew: PersonRecord, target: PersonRecord): string {
+  if (nieceOrNephew.gender === 'male' && target.gender === 'female') {
+    return 'cháu dâu';
+  }
+
+  if (nieceOrNephew.gender === 'female' && target.gender === 'male') {
     return 'cháu rể';
   }
 

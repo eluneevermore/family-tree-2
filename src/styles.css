@@ -79,6 +79,19 @@ button {
   font-weight: 800;
 }
 
+.tree-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tree-action-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
 .search-suggestions {
   position: absolute;
   z-index: 30;
@@ -196,6 +209,12 @@ button {
 .icon-button:hover {
   border-color: #93c5fd;
   color: #1d4ed8;
+}
+
+.toolbar-button:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .workspace {
@@ -643,6 +662,47 @@ button {
   padding: 11px 42px 8px 12px;
 }
 
+.person-note-mark {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 9;
+  width: 18px;
+  height: 18px;
+  cursor: help;
+}
+
+.person-note-mark::before {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 18px solid #f59e0b;
+  border-left: 18px solid transparent;
+  content: "";
+}
+
+.person-note-tooltip {
+  position: absolute;
+  bottom: 22px;
+  right: -4px;
+  z-index: 20;
+  width: max-content;
+  max-width: 220px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fffbeb;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 18%);
+  color: #78350f;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  pointer-events: none;
+  white-space: normal;
+}
+
 .person-name {
   min-height: 20px;
   overflow: hidden;
@@ -919,6 +979,7 @@ button {
 
 .field-label input,
 .field-label select,
+.field-label textarea,
 .search-field {
   width: 100%;
   border: 1px solid #dbe3ef;
@@ -928,9 +989,18 @@ button {
 }
 
 .field-label input,
-.field-label select {
+.field-label select,
+.field-label textarea {
   min-height: 38px;
   padding: 8px 10px;
+}
+
+.field-label textarea {
+  resize: vertical;
+}
+
+.field-label-wide {
+  grid-column: 1 / -1;
 }
 
 .search-field {

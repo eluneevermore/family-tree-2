@@ -4,7 +4,11 @@ export interface LocaleStrings {
   readonly appTitle: string;
   readonly familyTree: string;
   readonly createFamilyTree: string;
+  readonly renameFamilyTree: string;
+  readonly deleteFamilyTree: string;
   readonly newFamilyTreeName: string;
+  readonly renameFamilyTreeName: string;
+  readonly confirmDeleteFamilyTree: (name: string) => string;
   readonly nodeWidth: string;
   readonly searchPeople: string;
   readonly searchSuggestions: string;
@@ -46,6 +50,8 @@ export interface LocaleStrings {
   readonly name: string;
   readonly gender: string;
   readonly born: string;
+  readonly died: string;
+  readonly note: string;
   readonly personId: string;
   readonly typeIdOrName: string;
   readonly updateText: string;
@@ -72,7 +78,11 @@ export const locales: Record<Language, LocaleStrings> = {
     appTitle: 'Family Tree v2',
     familyTree: 'Family tree',
     createFamilyTree: 'Create new tree...',
+    renameFamilyTree: 'Rename tree',
+    deleteFamilyTree: 'Delete tree',
     newFamilyTreeName: 'New family tree name',
+    renameFamilyTreeName: 'Rename family tree',
+    confirmDeleteFamilyTree: (name) => `Delete "${name}"? This cannot be undone.`,
     nodeWidth: 'Node width',
     searchPeople: 'Search people',
     searchSuggestions: 'Search suggestions',
@@ -114,6 +124,8 @@ export const locales: Record<Language, LocaleStrings> = {
     name: 'Name',
     gender: 'Gender',
     born: 'Born',
+    died: 'Died',
+    note: 'Note',
     personId: 'Person id',
     typeIdOrName: 'Type id or name',
     updateText: 'Update text',
@@ -138,7 +150,11 @@ export const locales: Record<Language, LocaleStrings> = {
     appTitle: 'Gia phả v2',
     familyTree: 'Gia phả',
     createFamilyTree: 'Tạo gia phả mới...',
+    renameFamilyTree: 'Đổi tên gia phả',
+    deleteFamilyTree: 'Xoá gia phả',
     newFamilyTreeName: 'Tên gia phả mới',
+    renameFamilyTreeName: 'Đổi tên gia phả',
+    confirmDeleteFamilyTree: (name) => `Xoá "${name}"? Không thể hoàn tác.`,
     nodeWidth: 'Độ rộng nút',
     searchPeople: 'Tìm người',
     searchSuggestions: 'Gợi ý tìm kiếm',
@@ -180,6 +196,8 @@ export const locales: Record<Language, LocaleStrings> = {
     name: 'Tên',
     gender: 'Giới tính',
     born: 'Năm sinh',
+    died: 'Năm mất',
+    note: 'Ghi chú',
     personId: 'Mã người',
     typeIdOrName: 'Nhập mã hoặc tên',
     updateText: 'Cập nhật văn bản',

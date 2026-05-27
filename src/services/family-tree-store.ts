@@ -18,6 +18,8 @@ export interface FamilyTreeStore {
   listTrees(): readonly FamilyTreeSummary[];
   readTree(treeId: string): StoredFamilyTree | null;
   createTree(name: string, text: string): StoredFamilyTree;
+  renameTree(treeId: string, name: string): StoredFamilyTree | null;
+  deleteTree(treeId: string): StoredFamilyTree | null;
   saveTreeText(treeId: string, text: string): void;
   setActiveTreeId(treeId: string): void;
 }
@@ -73,6 +75,47 @@ export class LocalStorageFamilyTreeStore implements FamilyTreeStore {
       trees: [...collection.trees, tree]
     });
     return tree;
+  }
+
+  renameTree(treeId: string, name: string): StoredFamilyTree | null {
+    const collection = this.readCollection();
+    const normalizedName = name.trim();
+    if (!collection || !normalizedName) {
+      return null;
+    }
+
+    const tree = collection.trees.find((existingTree) => existingTree.id === treeId);
+    if (!tree) {
+      return null;
+    }
+
+    const renamedTree = { ...tree, name: normalizedName };
+    this.writeCollection({
+      ...collection,
+      trees: collection.trees.map((existingTree) => existingTree.id === treeId ? renamedTree : existingTree)
+    });
+    console.info('Renamed family tree.', { treeId });
+    return renamedTree;
+  }
+
+  deleteTree(treeId: string): StoredFamilyTree | null {
+    const collection = this.readCollection();
+    if (!collection || collection.trees.length <= 1) {
+      return null;
+    }
+
+    const remainingTrees = collection.trees.filter((tree) => tree.id !== treeId);
+    if (remainingTrees.length === collection.trees.length) {
+      return null;
+    }
+
+    const nextActiveTree = remainingTrees.find((tree) => tree.id === collection.activeTreeId) ?? remainingTrees[0];
+    this.writeCollection({
+      activeTreeId: nextActiveTree.id,
+      trees: remainingTrees
+    });
+    console.info('Deleted family tree.', { treeId, activeTreeId: nextActiveTree.id });
+    return nextActiveTree;
   }
 
   saveTreeText(treeId: string, text: string): void {

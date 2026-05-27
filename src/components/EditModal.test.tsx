@@ -23,13 +23,21 @@ describe('EditModal', () => {
 
     await user.type(screen.getByLabelText('Name'), 'Beta Person');
     await user.selectOptions(screen.getByLabelText('Gender'), 'female');
+    await user.type(screen.getByLabelText('Note'), 'Met at school');
     await user.click(screen.getByRole('button', { name: 'Update text' }));
 
     expect(onSubmitEdit).toHaveBeenCalledWith({
       type: 'add-spouse',
       personId: 'a',
       spouseId: 'betaperson',
-      spouse: { id: 'betaperson', name: 'Beta Person', gender: 'female', born: undefined }
+      spouse: {
+        id: 'betaperson',
+        name: 'Beta Person',
+        gender: 'female',
+        born: undefined,
+        died: undefined,
+        note: 'Met at school'
+      }
     });
   });
 
@@ -56,7 +64,14 @@ describe('EditModal', () => {
       type: 'add-child',
       parents: ['a', 'b'],
       childId: 'childperson',
-      child: { id: 'childperson', name: 'Child Person', gender: 'unknown', born: undefined }
+      child: {
+        id: 'childperson',
+        name: 'Child Person',
+        gender: 'unknown',
+        born: undefined,
+        died: undefined,
+        note: undefined
+      }
     });
   });
 
@@ -82,7 +97,14 @@ describe('EditModal', () => {
       type: 'add-parent',
       childId: 'c',
       parentId: 'parentperson',
-      parent: { id: 'parentperson', name: 'Parent Person', gender: 'unknown', born: undefined }
+      parent: {
+        id: 'parentperson',
+        name: 'Parent Person',
+        gender: 'unknown',
+        born: undefined,
+        died: undefined,
+        note: undefined
+      }
     });
   });
 

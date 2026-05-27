@@ -8,7 +8,7 @@ import { FamilyTreeDocument } from '../types';
 import { GraphView } from './GraphView';
 
 const GRAPH_TEXT = `
-dad:Dad,g=m,b=1970,d=2010
+dad:Dad,g=m,b=1970,d=2010,n=Dad note
 mom:Mom,g=f,b=1972
 me:Me,g=m,b=2000
 sis:Sister,g=f,b=1998
@@ -53,7 +53,23 @@ describe('GraphView', () => {
     const document = parseFamilyTreeText(GRAPH_TEXT);
     renderGraphView({ document });
 
-    expect(await screen.findByText('1970 - 2010')).toBeInTheDocument();
+    expect(await screen.findByText('[1970 - 2010]')).toBeInTheDocument();
+  });
+
+  it('shows a hoverable note mark on person nodes with notes', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    renderGraphView({ document });
+
+    const dadNode = await screen.findByTestId('person-node-dad');
+    const noteMark = within(dadNode).getByTestId('person-note-dad');
+
+    expect(noteMark).toHaveAttribute('title', 'Dad note');
+    expect(noteMark).toHaveAttribute('aria-label', 'Note: Dad note');
+    expect(within(dadNode).queryByRole('tooltip')).not.toBeInTheDocument();
+
+    fireEvent.mouseEnter(noteMark);
+
+    expect(within(dadNode).getByRole('tooltip', { hidden: true })).toHaveTextContent('Dad note');
   });
 
   it('fires node toggle, spouse checkbox, and spouse shortcut actions', async () => {

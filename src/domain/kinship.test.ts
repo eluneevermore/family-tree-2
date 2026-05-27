@@ -288,6 +288,16 @@ describe('describeKinship', () => {
     expect(describeKinship(document, 'me', 'wifeMomYoungerSisterHusband', 'vi')?.selectedToHovered).toBe('dượng');
   });
 
+  it('describes northern Vietnamese spouse terms from extended relatives back to spouse', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'wife', 'dadYoungerSister', 'vi')?.selectedToHovered).toBe('cô');
+    expect(describeKinship(document, 'dadYoungerSister', 'wife', 'vi')?.selectedToHovered).toBe('cháu dâu');
+    expect(describeKinship(document, 'dadYoungerSisterHusband', 'wife', 'vi')?.selectedToHovered).toBe('cháu dâu');
+    expect(describeKinship(document, 'wifeDadYoungerSister', 'me', 'vi')?.selectedToHovered).toBe('cháu rể');
+    expect(describeKinship(document, 'wifeDadYoungerSisterHusband', 'me', 'vi')?.selectedToHovered).toBe('cháu rể');
+  });
+
   it('describes northern Vietnamese extended terms through grandchild spouses', () => {
     const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
 

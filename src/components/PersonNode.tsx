@@ -40,9 +40,11 @@ export interface PersonNodeData extends Record<string, unknown> {
 export function PersonNode({ data }: NodeProps): ReactElement {
   const nodeData = data as PersonNodeData;
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isNoteTooltipOpen, setIsNoteTooltipOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   const borderColor = GENDER_COLORS[nodeData.person.gender];
   const lifeYears = formatLifeYears(nodeData.person);
+  const noteTooltipId = `person-note-tooltip-${nodeData.person.id}`;
   const nodeClassName = [
     'person-node',
     nodeData.isSearchMatch ? 'person-node-match' : '',
@@ -90,6 +92,27 @@ export function PersonNode({ data }: NodeProps): ReactElement {
       <Handle type="source" position={Position.Bottom} className="flow-handle" />
       <Handle type="source" position={Position.Left} id="left" className="flow-handle" />
       <Handle type="target" position={Position.Right} id="right" className="flow-handle" />
+      {nodeData.person.note ? (
+        <>
+          <span
+            aria-describedby={isNoteTooltipOpen ? noteTooltipId : undefined}
+            aria-label={`Note: ${nodeData.person.note}`}
+            className="person-note-mark"
+            data-testid={`person-note-${nodeData.person.id}`}
+            onBlur={() => setIsNoteTooltipOpen(false)}
+            onFocus={() => setIsNoteTooltipOpen(true)}
+            onMouseEnter={() => setIsNoteTooltipOpen(true)}
+            onMouseLeave={() => setIsNoteTooltipOpen(false)}
+            tabIndex={0}
+            title={nodeData.person.note}
+          />
+          {isNoteTooltipOpen ? (
+            <span className="person-note-tooltip" id={noteTooltipId} role="tooltip">
+              {nodeData.person.note}
+            </span>
+          ) : null}
+        </>
+      ) : null}
 
       <div className="person-main">
         <div className="person-name" title={nodeData.person.name}>{nodeData.person.name}</div>
@@ -235,11 +258,11 @@ function isNodeTarget(target: EventTarget | null): target is Node {
 }
 
 function formatLifeYears(person: PersonRecord): string | null {
-  if (person.born && person.died) {
-    return `${person.born} - ${person.died}`;
+  if (!person.born && !person.died) {
+    return null;
   }
 
-  return person.born ?? person.died ?? null;
+  return `[${person.born ?? ''} - ${person.died ?? ''}]`;
 }
 
 interface SpouseFamilyCheckboxProps {

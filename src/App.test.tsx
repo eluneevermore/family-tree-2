@@ -51,6 +51,30 @@ describe('App', () => {
     expect(screen.getByLabelText('Family tree source')).toHaveValue('b:Beta,g=u');
   });
 
+  it('renames and deletes saved family trees', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'prompt')
+      .mockReturnValueOnce('Second Tree')
+      .mockReturnValueOnce('Renamed Tree');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: locales.en.deleteFamilyTree })).toBeDisabled();
+
+    await user.selectOptions(
+      screen.getByLabelText(locales.en.familyTree),
+      screen.getByRole('option', { name: locales.en.createFamilyTree })
+    );
+    await user.click(screen.getByRole('button', { name: locales.en.renameFamilyTree }));
+
+    expect(screen.getByRole('option', { name: 'Renamed Tree' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: locales.en.deleteFamilyTree }));
+
+    expect(screen.queryByRole('option', { name: 'Renamed Tree' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(locales.en.familyTree)).toHaveDisplayValue(DEFAULT_FAMILY_TREE_NAME);
+  });
+
   it('shows parser diagnostics in the UI', async () => {
     const user = userEvent.setup();
     render(<App />);
