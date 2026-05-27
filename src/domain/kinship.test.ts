@@ -64,6 +64,7 @@ olderMaleCousinWife:Older Male Cousin Wife,g=f
 olderFemaleCousin:Older Female Cousin,g=f,b=1992
 olderFemaleCousinHusband:Older Female Cousin Husband,g=m
 youngerCousin:Younger Cousin,g=f,b=2005
+youngerBranchMaleCousin:Younger Branch Male Cousin,g=m,b=1990
 wifeDad:Wife Dad,g=m
 wifeMom:Wife Mom,g=f
 wifePgf:Wife Paternal Grandfather,g=m
@@ -128,7 +129,7 @@ mgf+mgm->momOlderSister,mom,momYoungerBrother,momYoungerSister
 dadOlderBrother+dadOlderBrotherWife->olderMaleCousin,olderFemaleCousin,youngerCousin
 olderMaleCousin+olderMaleCousinWife
 olderFemaleCousin+olderFemaleCousinHusband
-dadYoungerBrother+dadYoungerBrotherWife
+dadYoungerBrother+dadYoungerBrotherWife->youngerBranchMaleCousin
 dadYoungerSister+dadYoungerSisterHusband
 momOlderSister+momOlderSisterHusband
 momYoungerBrother+momYoungerBrotherWife
@@ -243,13 +244,25 @@ describe('describeKinship', () => {
 
     expect(describeKinship(document, 'me', 'olderMaleCousin', 'vi')?.selectedToHovered).toBe('anh họ');
     expect(describeKinship(document, 'me', 'olderFemaleCousin', 'vi')?.selectedToHovered).toBe('chị họ');
-    expect(describeKinship(document, 'me', 'youngerCousin', 'vi')?.selectedToHovered).toBe('em họ');
+    expect(describeKinship(document, 'me', 'youngerCousin', 'vi')?.selectedToHovered).toBe('chị họ');
+    expect(describeKinship(document, 'me', 'youngerBranchMaleCousin', 'vi')?.selectedToHovered).toBe('em họ');
+    expect(describeKinship(document, 'youngerBranchMaleCousin', 'me', 'vi')?.selectedToHovered).toBe('anh họ');
     expect(describeKinship(document, 'me', 'olderBrotherWife', 'vi')?.selectedToHovered).toBe('chị dâu');
     expect(describeKinship(document, 'me', 'olderSisterHusband', 'vi')?.selectedToHovered).toBe('anh rể');
     expect(describeKinship(document, 'me', 'youngerBrotherWife', 'vi')?.selectedToHovered).toBe('em dâu');
     expect(describeKinship(document, 'me', 'youngerSisterHusband', 'vi')?.selectedToHovered).toBe('em rể');
     expect(describeKinship(document, 'me', 'olderMaleCousinWife', 'vi')?.selectedToHovered).toBe('chị dâu');
     expect(describeKinship(document, 'me', 'olderFemaleCousinHusband', 'vi')?.selectedToHovered).toBe('anh rể');
+  });
+
+  it('describes northern Vietnamese spouse-side cousin terms through the spouse branch', () => {
+    const document = parseFamilyTreeText(VIETNAMESE_EXTENDED_KINSHIP_TEXT);
+
+    expect(describeKinship(document, 'youngerBrotherWife', 'olderMaleCousin', 'vi')?.selectedToHovered).toBe('anh chồng');
+    expect(describeKinship(document, 'youngerBrotherWife', 'youngerCousin', 'vi')?.selectedToHovered).toBe('chị chồng');
+    expect(describeKinship(document, 'olderMaleCousin', 'wife', 'vi')?.selectedToHovered).toBe('em dâu');
+    expect(describeKinship(document, 'olderMaleCousinWife', 'me', 'vi')?.selectedToHovered).toBe('em chồng');
+    expect(describeKinship(document, 'olderFemaleCousinHusband', 'me', 'vi')?.selectedToHovered).toBe('em vợ');
   });
 
   it('describes northern Vietnamese spouse-family and co-in-law terms', () => {

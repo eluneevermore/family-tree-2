@@ -13,6 +13,7 @@ import {
   isPresent,
   isSpouse,
   RELATIONSHIP_LABEL_SEPARATOR,
+  RelativeAge,
   uniqueLabels
 } from './shared';
 
@@ -204,7 +205,8 @@ function getVietnameseSpouseFamilyLabels(
 ): readonly string[] {
   return getSpouseLinks(document, source.id).flatMap((spouseLink) => [
     ...getVietnameseSpouseParentLabels(document, spouseLink.spouse, target),
-    ...getVietnameseSpouseSiblingLabels(document, spouseLink.spouse, target)
+    ...getVietnameseSpouseSiblingLabels(document, spouseLink.spouse, target),
+    ...getVietnameseSpouseCousinLabels(document, spouseLink.spouse, target)
   ]);
 }
 
@@ -372,16 +374,46 @@ function describeVietnameseCousin(
   source: PersonRecord,
   target: PersonRecord
 ): string {
-  const relativeAge = getRelativeAge(document, source, target);
-  if (relativeAge === 'younger') {
+  const branchAge = getVietnameseCousinBranchAge(document, source, target);
+  if (branchAge === 'younger') {
     return 'em họ';
   }
 
-  if (relativeAge === 'older') {
+  if (branchAge === 'older') {
     return target.gender === 'male' ? 'anh họ' : target.gender === 'female' ? 'chị họ' : 'anh/chị họ';
   }
 
   return 'anh/chị/em họ';
+}
+
+function getVietnameseCousinBranchAge(
+  document: FamilyTreeDocument,
+  source: PersonRecord,
+  target: PersonRecord
+): RelativeAge {
+  const contexts = getVietnameseCousinParentContexts(document, source.id, target.id);
+  return contexts
+    .map((context) => getRelativeAge(document, context.sourceParent, context.targetParent))
+    .find((relativeAge) => relativeAge !== 'unknown') ?? 'unknown';
+}
+
+interface VietnameseCousinParentContext {
+  readonly sourceParent: PersonRecord;
+  readonly targetParent: PersonRecord;
+}
+
+function getVietnameseCousinParentContexts(
+  document: FamilyTreeDocument,
+  sourcePersonId: string,
+  targetPersonId: string
+): readonly VietnameseCousinParentContext[] {
+  return getParentLinks(document, sourcePersonId).flatMap((sourceParentLink) => {
+    return getParentLinks(document, targetPersonId).flatMap((targetParentLink) => {
+      return areSiblings(document, sourceParentLink.parent.id, targetParentLink.parent.id)
+        ? [{ sourceParent: sourceParentLink.parent, targetParent: targetParentLink.parent }]
+        : [];
+    });
+  });
 }
 
 function describeVietnameseRelativeSpouse(
@@ -425,15 +457,16 @@ function describeVietnameseCousinSpouse(
   cousin: PersonRecord,
   target: PersonRecord
 ): string | null {
-  if (getRelativeAge(document, source, cousin) !== 'older') {
-    return null;
-  }
-
+  const branchAge = getVietnameseCousinBranchAge(document, source, cousin);
   if (cousin.gender === 'female' && target.gender === 'male') {
-    return 'anh rể';
+    return branchAge === 'older' ? 'anh rể' : branchAge === 'younger' ? 'em rể' : 'anh/em rể';
   }
 
-  return cousin.gender === 'male' && target.gender === 'female' ? 'chị dâu' : null;
+  if (cousin.gender === 'male' && target.gender === 'female') {
+    return branchAge === 'older' ? 'chị dâu' : branchAge === 'younger' ? 'em dâu' : 'chị/em dâu';
+  }
+
+  return null;
 }
 
 function getVietnameseSpouseParentLabels(
@@ -453,6 +486,16 @@ function getVietnameseSpouseSiblingLabels(
 ): readonly string[] {
   return areSiblings(document, spouse.id, target.id)
     ? [formatVietnameseSpouseSibling(document, spouse, target)]
+    : [];
+}
+
+function getVietnameseSpouseCousinLabels(
+  document: FamilyTreeDocument,
+  spouse: PersonRecord,
+  target: PersonRecord
+): readonly string[] {
+  return areCousins(document, spouse.id, target.id)
+    ? [formatVietnameseSpouseCousin(document, spouse, target)]
     : [];
 }
 
@@ -555,6 +598,26 @@ function formatVietnameseSpouseSibling(
 
   return target.gender === 'female'
     ? relativeAge === 'older' ? `chị ${suffix}` : `chị/em ${suffix}`
+    : `anh/chị/em ${suffix}`;
+}
+
+function formatVietnameseSpouseCousin(
+  document: FamilyTreeDocument,
+  spouse: PersonRecord,
+  target: PersonRecord
+): string {
+  const branchAge = getVietnameseCousinBranchAge(document, spouse, target);
+  const suffix = spouse.gender === 'female' ? 'vợ' : spouse.gender === 'male' ? 'chồng' : 'vợ/chồng';
+  if (branchAge === 'younger') {
+    return `em ${suffix}`;
+  }
+
+  if (target.gender === 'male') {
+    return branchAge === 'older' ? `anh ${suffix}` : `anh/em ${suffix}`;
+  }
+
+  return target.gender === 'female'
+    ? branchAge === 'older' ? `chị ${suffix}` : `chị/em ${suffix}`
     : `anh/chị/em ${suffix}`;
 }
 
