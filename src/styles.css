@@ -193,6 +193,30 @@ button {
   height: 36px;
 }
 
+.toolbar-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.toolbar-text-button:hover {
+  border-color: #60a5fa;
+  background: #eff6ff;
+}
+
+.toolbar-text-button-muted {
+  border-color: #dbe3ef;
+  color: #475569;
+}
+
 .language-select {
   height: 36px;
   padding: 0 8px;
@@ -215,6 +239,39 @@ button {
 .icon-button:disabled {
   cursor: not-allowed;
   opacity: 0.48;
+}
+
+.shared-preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.shared-preview-banner strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.shared-preview-banner span {
+  display: block;
+  margin-top: 2px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.shared-preview-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .workspace {
@@ -392,6 +449,11 @@ button {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: 13px;
   line-height: 1.65;
+}
+
+.tree-textarea-readonly {
+  background: #f8fafc;
+  color: #475569;
 }
 
 .dsl-suggestions {
@@ -1183,6 +1245,15 @@ button {
   .header-actions {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  .shared-preview-banner {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shared-preview-actions {
+    justify-content: flex-start;
   }
 
   .workspace {

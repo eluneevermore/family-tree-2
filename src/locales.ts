@@ -25,6 +25,15 @@ export interface LocaleStrings {
   readonly viewMode: string;
   readonly import: string;
   readonly export: string;
+  readonly shareTree: string;
+  readonly shareLinkPrompt: string;
+  readonly sharedPreviewTitle: string;
+  readonly sharedPreviewDescription: string;
+  readonly sharedTreeName: string;
+  readonly saveSharedTreeAsNew: string;
+  readonly replaceCurrentTree: string;
+  readonly confirmReplaceCurrentTree: (name: string) => string;
+  readonly discardSharedPreview: string;
   readonly toggleSplitView: string;
   readonly splitGraphView: string;
   readonly closeSplitGraphView: string;
@@ -107,6 +116,15 @@ export const locales: Record<Language, LocaleStrings> = {
     viewMode: 'View mode',
     import: 'Import',
     export: 'Export',
+    shareTree: 'Share tree',
+    shareLinkPrompt: 'Copy this share link',
+    sharedPreviewTitle: 'Shared preview',
+    sharedPreviewDescription: 'This shared tree is read-only until you save it as a new tree or replace your current tree.',
+    sharedTreeName: 'Name for this shared tree',
+    saveSharedTreeAsNew: 'Save as new tree',
+    replaceCurrentTree: 'Replace current tree',
+    confirmReplaceCurrentTree: (name) => `Replace "${name}" with this shared tree?`,
+    discardSharedPreview: 'Discard preview',
     toggleSplitView: 'Toggle split view',
     splitGraphView: 'Split graph view',
     closeSplitGraphView: 'Close split graph view',
@@ -187,6 +205,15 @@ export const locales: Record<Language, LocaleStrings> = {
     viewMode: 'Chế độ xem',
     import: 'Nhập',
     export: 'Xuất',
+    shareTree: 'Chia sẻ gia phả',
+    shareLinkPrompt: 'Sao chép liên kết chia sẻ này',
+    sharedPreviewTitle: 'Bản xem trước được chia sẻ',
+    sharedPreviewDescription: 'Gia phả được chia sẻ chỉ xem được cho đến khi bạn lưu thành gia phả mới hoặc thay thế gia phả hiện tại.',
+    sharedTreeName: 'Tên cho gia phả được chia sẻ',
+    saveSharedTreeAsNew: 'Lưu thành gia phả mới',
+    replaceCurrentTree: 'Thay thế gia phả hiện tại',
+    confirmReplaceCurrentTree: (name) => `Thay thế "${name}" bằng gia phả được chia sẻ này?`,
+    discardSharedPreview: 'Bỏ bản xem trước',
     toggleSplitView: 'Bật/tắt chia đôi',
     splitGraphView: 'Chia đôi đồ thị',
     closeSplitGraphView: 'Đóng đồ thị thứ hai',

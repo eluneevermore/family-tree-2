@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { DEFAULT_FAMILY_TREE_NAME, STORAGE_FAMILY_TREES_KEY, STORAGE_SITE_CONFIGURATION_KEY } from './constants';
 import { locales } from './locales';
+import { decodeSharedTreeText, encodeSharedTreeText, SHARE_QUERY_PARAMETER } from './services/share-link';
 
 describe('App', () => {
   afterEach(() => {
@@ -100,6 +101,71 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Language')).toHaveValue('vi');
     expect(screen.getByRole('heading', { name: locales.vi.appTitle })).toBeInTheDocument();
+  });
+
+  it('opens shared links as read-only previews without overwriting the active tree', () => {
+    writeStoredFamilyTrees('local:Local,g=u');
+    window.history.pushState({}, '', `/?${SHARE_QUERY_PARAMETER}=${encodeSharedTreeText('shared:Shared,g=u')}`);
+
+    render(<App />);
+
+    expect(screen.getByText(locales.en.sharedPreviewTitle)).toBeInTheDocument();
+    expect(screen.getByLabelText('Family tree source')).toHaveValue('shared:Shared,g=u');
+    expect(screen.getByLabelText('Family tree source')).toHaveAttribute('readonly');
+    expect(readStoredActiveTreeText()).toBe('local:Local,g=u');
+  });
+
+  it('saves shared previews as new trees only after the user chooses to', async () => {
+    const user = userEvent.setup();
+    const sharedText = 'shared:Shared,g=u';
+    vi.spyOn(window, 'prompt').mockReturnValue('Shared Copy');
+    writeStoredFamilyTrees('local:Local,g=u');
+    window.history.pushState({}, '', `/?${SHARE_QUERY_PARAMETER}=${encodeSharedTreeText(sharedText)}`);
+
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: locales.en.saveSharedTreeAsNew }));
+
+    expect(screen.queryByText(locales.en.sharedPreviewTitle)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(locales.en.familyTree)).toHaveDisplayValue('Shared Copy');
+    expect(readStoredActiveTreeText()).toBe(sharedText);
+    expect(window.location.search).toBe('');
+  });
+
+  it('replaces the active tree from a shared preview only after confirmation', async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const sharedText = 'shared:Shared,g=u';
+    writeStoredFamilyTrees('local:Local,g=u');
+    window.history.pushState({}, '', `/?${SHARE_QUERY_PARAMETER}=${encodeSharedTreeText(sharedText)}`);
+
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: locales.en.replaceCurrentTree }));
+    expect(readStoredActiveTreeText()).toBe('local:Local,g=u');
+
+    await user.click(screen.getByRole('button', { name: locales.en.replaceCurrentTree }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(readStoredActiveTreeText()).toBe(sharedText);
+    expect(screen.queryByText(locales.en.sharedPreviewTitle)).not.toBeInTheDocument();
+  });
+
+  it('copies a share link for the current tree text', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    });
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'text' }));
+    await user.clear(screen.getByLabelText('Family tree source'));
+    await user.type(screen.getByLabelText('Family tree source'), 'a:Nguyễn Văn A,g=m');
+    await user.click(screen.getByRole('button', { name: locales.en.shareTree }));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const sharedUrl = new URL(String(writeText.mock.calls[0]?.[0]));
+    expect(decodeSharedTreeText(sharedUrl.searchParams.get(SHARE_QUERY_PARAMETER) ?? '')).toBe('a:Nguyễn Văn A,g=m');
   });
 
   it('keeps the graph footer visible before selection', async () => {
@@ -212,4 +278,15 @@ function readStoredActiveTreeText(): string | null {
     readonly trees?: readonly { readonly id: string; readonly text: string }[];
   };
   return parsedValue.trees?.find((tree) => tree.id === parsedValue.activeTreeId)?.text ?? null;
+}
+
+function writeStoredFamilyTrees(text: string): void {
+  localStorage.setItem(STORAGE_FAMILY_TREES_KEY, JSON.stringify({
+    activeTreeId: 'local-tree',
+    trees: [{
+      id: 'local-tree',
+      name: 'Local Tree',
+      text
+    }]
+  }));
 }

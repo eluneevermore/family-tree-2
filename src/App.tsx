@@ -1,5 +1,5 @@
 import { ChangeEvent, CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Pencil, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
+import { Columns2, Download, GitBranch, PanelLeftClose, PanelLeftOpen, Pencil, Share2, SlidersHorizontal, Trash2, Upload } from 'lucide-react';
 import { TextEditor } from './components/TextEditor';
 import { GraphView } from './components/GraphView';
 import { EditModal, type EditMode } from './components/EditModal';
@@ -27,6 +27,11 @@ import { FamilyTreeSummary, FamilyTreeStore, LocalStorageFamilyTreeStore } from 
 import { importLegacyFamilyText, looksLikeLegacyFamilyText } from './services/legacy-importer';
 import { parseFamilyTreeText } from './services/parser';
 import {
+  createSharedTreeUrl,
+  readSharedTreeTextFromSearch,
+  removeSharedTreeParameterFromUrl
+} from './services/share-link';
+import {
   clampPersonHorizontalGap,
   clampPersonNodeHeight,
   clampPersonNodeWidth,
@@ -51,6 +56,7 @@ interface GraphViewState {
 
 interface FamilyTreeAppState {
   readonly activeTreeId: string;
+  readonly source: 'local' | 'shared-preview';
   readonly trees: readonly FamilyTreeSummary[];
   readonly text: string;
 }
@@ -88,15 +94,20 @@ function App(): ReactElement {
   const nodeWidth = siteConfiguration.personNodeWidth;
   const document = useMemo(() => parseFamilyTreeText(text), [text]);
   const locale = locales[language];
+  const isSharedPreview = familyTreeState.source === 'shared-preview';
   const hasSplitGraphView = graphViews.length > 1;
-  const canDeleteFamilyTree = familyTreeState.trees.length > 1;
+  const canDeleteFamilyTree = !isSharedPreview && familyTreeState.trees.length > 1;
   const kinship = useMemo(() => {
     return describeKinship(document, selectedPersonId, hoveredPersonId, language);
   }, [document, hoveredPersonId, language, selectedPersonId]);
 
   useEffect(() => {
+    if (familyTreeState.source !== 'local') {
+      return;
+    }
+
     familyTreeStore.saveTreeText(familyTreeState.activeTreeId, familyTreeState.text);
-  }, [familyTreeState.activeTreeId, familyTreeState.text, familyTreeStore]);
+  }, [familyTreeState.activeTreeId, familyTreeState.source, familyTreeState.text, familyTreeStore]);
 
   useEffect(() => {
     siteConfigurationStore.save(siteConfiguration);
@@ -145,7 +156,9 @@ function App(): ReactElement {
   const updateText = useCallback((update: TextUpdate): void => {
     setFamilyTreeState((currentState) => ({
       ...currentState,
-      text: typeof update === 'function' ? update(currentState.text) : update
+      text: currentState.source === 'local'
+        ? resolveTextUpdate(update, currentState.text)
+        : currentState.text
     }));
   }, []);
 
@@ -164,9 +177,13 @@ function App(): ReactElement {
   }, [updateGraphView]);
 
   const handleSubmitEdit = useCallback((edit: FamilyTreeEdit): void => {
+    if (isSharedPreview) {
+      return;
+    }
+
     updateText((currentText) => applyFamilyTreeEdit(currentText, edit));
     setPendingEdit(null);
-  }, [updateText]);
+  }, [isSharedPreview, updateText]);
 
   const handleFocusPerson = useCallback((graphViewId: string, personId: string): void => {
     updateGraphView(graphViewId, (graphView) => ({ ...graphView, focusPersonId: personId }));
@@ -220,6 +237,11 @@ function App(): ReactElement {
   }, []);
 
   const handleFamilyTreeSelection = useCallback((event: ChangeEvent<HTMLSelectElement>): void => {
+    if (isSharedPreview) {
+      event.target.value = familyTreeState.activeTreeId;
+      return;
+    }
+
     const selectedTreeId = event.target.value;
     if (selectedTreeId === CREATE_TREE_OPTION_VALUE) {
       event.target.value = familyTreeState.activeTreeId;
@@ -231,6 +253,7 @@ function App(): ReactElement {
       const tree = familyTreeStore.createTree(name, NEW_TREE_TEXT);
       setFamilyTreeState({
         activeTreeId: tree.id,
+        source: 'local',
         trees: familyTreeStore.listTrees(),
         text: tree.text
       });
@@ -246,13 +269,18 @@ function App(): ReactElement {
     familyTreeStore.setActiveTreeId(tree.id);
     setFamilyTreeState({
       activeTreeId: tree.id,
+      source: 'local',
       trees: familyTreeStore.listTrees(),
       text: tree.text
     });
     resetGraphContext(null);
-  }, [familyTreeState.activeTreeId, familyTreeStore, locale.newFamilyTreeName, resetGraphContext]);
+  }, [familyTreeState.activeTreeId, familyTreeStore, isSharedPreview, locale.newFamilyTreeName, resetGraphContext]);
 
   const handleRenameActiveFamilyTree = useCallback((): void => {
+    if (isSharedPreview) {
+      return;
+    }
+
     const activeTree = familyTreeState.trees.find((tree) => tree.id === familyTreeState.activeTreeId);
     if (!activeTree) {
       return;
@@ -270,6 +298,7 @@ function App(): ReactElement {
 
     setFamilyTreeState({
       activeTreeId: renamedTree.id,
+      source: 'local',
       trees: familyTreeStore.listTrees(),
       text: familyTreeState.text
     });
@@ -278,10 +307,15 @@ function App(): ReactElement {
     familyTreeState.text,
     familyTreeState.trees,
     familyTreeStore,
+    isSharedPreview,
     locale.renameFamilyTreeName
   ]);
 
   const handleDeleteActiveFamilyTree = useCallback((): void => {
+    if (isSharedPreview) {
+      return;
+    }
+
     const activeTree = familyTreeState.trees.find((tree) => tree.id === familyTreeState.activeTreeId);
     if (!activeTree || !canDeleteFamilyTree || !window.confirm(locale.confirmDeleteFamilyTree(activeTree.name))) {
       return;
@@ -294,6 +328,7 @@ function App(): ReactElement {
 
     setFamilyTreeState({
       activeTreeId: nextActiveTree.id,
+      source: 'local',
       trees: familyTreeStore.listTrees(),
       text: nextActiveTree.text
     });
@@ -302,6 +337,7 @@ function App(): ReactElement {
     canDeleteFamilyTree,
     familyTreeState.activeTreeId,
     familyTreeStore,
+    isSharedPreview,
     locale,
     resetGraphContext
   ]);
@@ -373,7 +409,26 @@ function App(): ReactElement {
     URL.revokeObjectURL(url);
   }
 
+  function handleShareTree(): void {
+    const sharedUrl = createSharedTreeUrl(text, window.location.href);
+    const writeText = navigator.clipboard?.writeText(sharedUrl);
+    if (!writeText) {
+      window.prompt(locale.shareLinkPrompt, sharedUrl);
+      return;
+    }
+
+    writeText.catch((error) => {
+      console.error('Failed to copy shared family tree link.', error);
+      window.prompt(locale.shareLinkPrompt, sharedUrl);
+    });
+  }
+
   function handleUpload(event: ChangeEvent<HTMLInputElement>): void {
+    if (isSharedPreview) {
+      event.target.value = '';
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -386,6 +441,70 @@ function App(): ReactElement {
       event.target.value = '';
     };
     reader.readAsText(file);
+  }
+
+  function handleSaveSharedPreviewAsNewTree(): void {
+    if (!isSharedPreview) {
+      return;
+    }
+
+    const name = window.prompt(locale.sharedTreeName)?.trim();
+    if (!name) {
+      return;
+    }
+
+    const tree = familyTreeStore.createTree(name, familyTreeState.text);
+    setFamilyTreeState({
+      activeTreeId: tree.id,
+      source: 'local',
+      trees: familyTreeStore.listTrees(),
+      text: tree.text
+    });
+    clearSharedPreviewUrl();
+    resetGraphContext(null);
+  }
+
+  function handleReplaceCurrentTree(): void {
+    if (!isSharedPreview) {
+      return;
+    }
+
+    const activeTreeName = familyTreeState.trees.find((tree) => tree.id === familyTreeState.activeTreeId)?.name ?? locale.familyTree;
+    if (!window.confirm(locale.confirmReplaceCurrentTree(activeTreeName))) {
+      return;
+    }
+
+    familyTreeStore.saveTreeText(familyTreeState.activeTreeId, familyTreeState.text);
+    familyTreeStore.setActiveTreeId(familyTreeState.activeTreeId);
+    setFamilyTreeState({
+      activeTreeId: familyTreeState.activeTreeId,
+      source: 'local',
+      trees: familyTreeStore.listTrees(),
+      text: familyTreeState.text
+    });
+    clearSharedPreviewUrl();
+    resetGraphContext(null);
+  }
+
+  function handleDiscardSharedPreview(): void {
+    if (!isSharedPreview) {
+      return;
+    }
+
+    const activeTree = familyTreeStore.readTree(familyTreeState.activeTreeId) ?? familyTreeStore.ensureReady(DEFAULT_TREE_TEXT);
+    familyTreeStore.setActiveTreeId(activeTree.id);
+    setFamilyTreeState({
+      activeTreeId: activeTree.id,
+      source: 'local',
+      trees: familyTreeStore.listTrees(),
+      text: activeTree.text
+    });
+    clearSharedPreviewUrl();
+    resetGraphContext(null);
+  }
+
+  function clearSharedPreviewUrl(): void {
+    window.history.replaceState({}, '', removeSharedTreeParameterFromUrl(window.location.href));
   }
 
   const appClassName = `app-shell view-${viewMode}`;
@@ -402,6 +521,7 @@ function App(): ReactElement {
             <select
               aria-label={locale.familyTree}
               className="tree-select"
+              disabled={isSharedPreview}
               onChange={handleFamilyTreeSelection}
               value={familyTreeState.activeTreeId}
             >
@@ -413,6 +533,7 @@ function App(): ReactElement {
             <button
               aria-label={locale.renameFamilyTree}
               className="toolbar-button tree-action-button"
+              disabled={isSharedPreview}
               onClick={handleRenameActiveFamilyTree}
               title={locale.renameFamilyTree}
               type="button"
@@ -455,11 +576,21 @@ function App(): ReactElement {
             <option value="en">English</option>
             <option value="vi">Tiếng Việt (Miền bắc)</option>
           </select>
-          <button className="toolbar-button" onClick={() => fileInputRef.current?.click()} type="button" title={locale.import}>
+          <button
+            aria-label={locale.import}
+            className="toolbar-button"
+            disabled={isSharedPreview}
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+            title={locale.import}
+          >
             <Upload size={17} />
           </button>
-          <button className="toolbar-button" onClick={handleDownload} type="button" title={locale.export}>
+          <button aria-label={locale.export} className="toolbar-button" onClick={handleDownload} type="button" title={locale.export}>
             <Download size={17} />
+          </button>
+          <button aria-label={locale.shareTree} className="toolbar-button" onClick={handleShareTree} type="button" title={locale.shareTree}>
+            <Share2 size={17} />
           </button>
           {viewMode !== 'text' ? (
             <button
@@ -484,9 +615,36 @@ function App(): ReactElement {
         </div>
       </header>
 
+      {isSharedPreview ? (
+        <section className="shared-preview-banner" aria-label={locale.sharedPreviewTitle}>
+          <div>
+            <strong>{locale.sharedPreviewTitle}</strong>
+            <span>{locale.sharedPreviewDescription}</span>
+          </div>
+          <div className="shared-preview-actions">
+            <button className="toolbar-text-button" onClick={handleSaveSharedPreviewAsNewTree} type="button">
+              {locale.saveSharedTreeAsNew}
+            </button>
+            <button className="toolbar-text-button" onClick={handleReplaceCurrentTree} type="button">
+              {locale.replaceCurrentTree}
+            </button>
+            <button className="toolbar-text-button toolbar-text-button-muted" onClick={handleDiscardSharedPreview} type="button">
+              {locale.discardSharedPreview}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <main className="workspace" data-testid="workspace" style={workspaceStyle}>
         {viewMode !== 'graph' ? (
-          <TextEditor diagnostics={document.diagnostics} document={document} locale={locale} text={text} onTextChange={updateText} />
+          <TextEditor
+            diagnostics={document.diagnostics}
+            document={document}
+            isReadOnly={isSharedPreview}
+            locale={locale}
+            text={text}
+            onTextChange={updateText}
+          />
         ) : null}
 
         {viewMode === 'both' ? (
@@ -506,6 +664,7 @@ function App(): ReactElement {
               {graphViews.map((graphView) => (
                 <div className="graph-view-frame" data-testid={`graph-view-${graphView.id}`} key={graphView.id}>
                   <GraphView
+                    canEdit={!isSharedPreview}
                     collapsedFamilyIds={graphView.collapsedFamilyIds}
                     collapsedPersonIds={graphView.collapsedPersonIds}
                     connectionStyle={connectionStyle}
@@ -579,11 +738,17 @@ function readLanguage(): Language {
 
 function readInitialFamilyTreeState(familyTreeStore: FamilyTreeStore): FamilyTreeAppState {
   const activeTree = familyTreeStore.ensureReady(DEFAULT_TREE_TEXT);
+  const sharedText = readSharedTreeTextFromSearch(window.location.search);
   return {
     activeTreeId: activeTree.id,
+    source: sharedText === null ? 'local' : 'shared-preview',
     trees: familyTreeStore.listTrees(),
-    text: activeTree.text
+    text: sharedText ?? activeTree.text
   };
+}
+
+function resolveTextUpdate(update: TextUpdate, currentText: string): string {
+  return typeof update === 'function' ? update(currentText) : update;
 }
 
 function createGraphViewState(

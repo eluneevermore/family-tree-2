@@ -162,6 +162,15 @@ a+s->c
     expect(onAddParent).toHaveBeenCalledWith(document.people.get('dad'));
   });
 
+  it('hides add actions when graph editing is disabled', async () => {
+    const document = parseFamilyTreeText(GRAPH_TEXT);
+    renderGraphView({ document, canEdit: false });
+
+    const dadNode = await screen.findByTestId('person-node-dad');
+
+    expect(within(dadNode).queryByTestId('person-actions-dad')).not.toBeInTheDocument();
+  });
+
   it('closes the node action menu when the graph pane is clicked', async () => {
     const user = userEvent.setup();
     const document = parseFamilyTreeText(GRAPH_TEXT);
@@ -208,6 +217,7 @@ a+s->c
 function renderGraphView(options: RenderGraphViewOptions): ReturnType<typeof render> {
   return render(
     <GraphView
+      canEdit={options.canEdit ?? true}
       collapsedFamilyIds={options.collapsedFamilyIds ?? new Set()}
       collapsedPersonIds={options.collapsedPersonIds ?? new Set()}
       document={options.document}

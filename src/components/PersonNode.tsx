@@ -28,6 +28,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   readonly personToggle?: PersonToggleSummary;
   readonly isSearchMatch: boolean;
   readonly isSelected: boolean;
+  readonly canEdit: boolean;
   readonly locale: LocaleStrings;
   readonly onAddChild: (person: PersonRecord) => void;
   readonly onAddParent: (person: PersonRecord) => void;
@@ -181,52 +182,54 @@ export function PersonNode({ data }: NodeProps): ReactElement {
         </div>
       ) : null}
 
-      <div
-        aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}
-        className="node-actions nodrag nopan"
-        ref={actionsRef}
-      >
-        <button
-          aria-expanded={isActionMenuOpen}
-          aria-haspopup="menu"
+      {nodeData.canEdit ? (
+        <div
           aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}
-          className="icon-button"
-          data-testid={`person-actions-${nodeData.person.id}`}
-          onClick={(event) => {
-            stopClick(event);
-            setIsActionMenuOpen((isOpen) => !isOpen);
-          }}
-          title={nodeData.locale.nodeActionsFor(nodeData.person.name)}
-          type="button"
+          className="node-actions nodrag nopan"
+          ref={actionsRef}
         >
-          <MoreHorizontal size={15} />
-        </button>
-        {isActionMenuOpen ? (
-          <div className="node-action-menu" role="menu">
-            <NodeActionMenuButton
-              actionTestId={`person-action-add-spouse-${nodeData.person.id}`}
-              icon={<UserPlus size={13} />}
-              label={nodeData.locale.addSpouse}
-              onClick={() => nodeData.onAddSpouse(nodeData.person)}
-              stopClick={stopClick}
-            />
-            <NodeActionMenuButton
-              actionTestId={`person-action-add-child-${nodeData.person.id}`}
-              icon={<Baby size={13} />}
-              label={nodeData.locale.addChild}
-              onClick={() => nodeData.onAddChild(nodeData.person)}
-              stopClick={stopClick}
-            />
-            <NodeActionMenuButton
-              actionTestId={`person-action-add-parent-${nodeData.person.id}`}
-              icon={<Users size={13} />}
-              label={nodeData.locale.addParent}
-              onClick={() => nodeData.onAddParent(nodeData.person)}
-              stopClick={stopClick}
-            />
-          </div>
-        ) : null}
-      </div>
+          <button
+            aria-expanded={isActionMenuOpen}
+            aria-haspopup="menu"
+            aria-label={nodeData.locale.nodeActionsFor(nodeData.person.name)}
+            className="icon-button"
+            data-testid={`person-actions-${nodeData.person.id}`}
+            onClick={(event) => {
+              stopClick(event);
+              setIsActionMenuOpen((isOpen) => !isOpen);
+            }}
+            title={nodeData.locale.nodeActionsFor(nodeData.person.name)}
+            type="button"
+          >
+            <MoreHorizontal size={15} />
+          </button>
+          {isActionMenuOpen ? (
+            <div className="node-action-menu" role="menu">
+              <NodeActionMenuButton
+                actionTestId={`person-action-add-spouse-${nodeData.person.id}`}
+                icon={<UserPlus size={13} />}
+                label={nodeData.locale.addSpouse}
+                onClick={() => nodeData.onAddSpouse(nodeData.person)}
+                stopClick={stopClick}
+              />
+              <NodeActionMenuButton
+                actionTestId={`person-action-add-child-${nodeData.person.id}`}
+                icon={<Baby size={13} />}
+                label={nodeData.locale.addChild}
+                onClick={() => nodeData.onAddChild(nodeData.person)}
+                stopClick={stopClick}
+              />
+              <NodeActionMenuButton
+                actionTestId={`person-action-add-parent-${nodeData.person.id}`}
+                icon={<Users size={13} />}
+                label={nodeData.locale.addParent}
+                onClick={() => nodeData.onAddParent(nodeData.person)}
+                stopClick={stopClick}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

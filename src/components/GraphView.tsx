@@ -28,6 +28,7 @@ import { LocaleStrings } from '../locales';
 import { PersonToggleSummary, PersonNode, PersonNodeData, SpouseSummary } from './PersonNode';
 
 interface GraphViewProps {
+  readonly canEdit: boolean;
   readonly document: FamilyTreeDocument;
   readonly focusPersonId: string | null;
   readonly locale: LocaleStrings;
@@ -76,6 +77,7 @@ export const GraphView = memo(GraphViewComponent, areGraphViewPropsEqual);
 
 function GraphCanvas({
   document,
+  canEdit,
   focusPersonId,
   locale,
   connectionStyle,
@@ -107,6 +109,7 @@ function GraphCanvas({
   const searchSuggestions = useMemo(() => suggestPeople(document, searchQuery), [document, searchQuery]);
   const defaultNodes = useMemo(() => buildFlowNodes({
     layout,
+    canEdit,
     document,
     matchingPersonIds,
     selectedPersonId,
@@ -122,6 +125,7 @@ function GraphCanvas({
     onToggleFamily,
     onTogglePerson
   }), [
+    canEdit,
     document,
     layout,
     locale,
@@ -294,7 +298,8 @@ function GraphCanvas({
 }
 
 function areGraphViewPropsEqual(previousProps: GraphViewProps, nextProps: GraphViewProps): boolean {
-  return previousProps.document === nextProps.document
+  return previousProps.canEdit === nextProps.canEdit
+    && previousProps.document === nextProps.document
     && previousProps.focusPersonId === nextProps.focusPersonId
     && previousProps.locale === nextProps.locale
     && previousProps.connectionStyle === nextProps.connectionStyle
@@ -308,6 +313,7 @@ function areGraphViewPropsEqual(previousProps: GraphViewProps, nextProps: GraphV
 
 interface BuildFlowNodesOptions {
   readonly layout: TreeLayout;
+  readonly canEdit: boolean;
   readonly document: FamilyTreeDocument;
   readonly matchingPersonIds: ReadonlySet<string>;
   readonly selectedPersonId: string | null;
@@ -326,6 +332,7 @@ interface BuildFlowNodesOptions {
 
 function buildFlowNodes({
   layout,
+  canEdit,
   document,
   matchingPersonIds,
   selectedPersonId,
@@ -354,6 +361,7 @@ function buildFlowNodes({
       personToggle: buildPersonToggleSummary(layoutNode.childLineToggle),
       isSearchMatch: matchingPersonIds.has(layoutNode.id),
       isSelected: selectedPersonId === layoutNode.id,
+      canEdit,
       locale,
       onAddChild,
       onAddParent,

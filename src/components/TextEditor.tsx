@@ -8,17 +8,18 @@ interface TextEditorProps {
   readonly text: string;
   readonly document: FamilyTreeDocument;
   readonly diagnostics: readonly ParseDiagnostic[];
+  readonly isReadOnly?: boolean;
   readonly locale: LocaleStrings;
   readonly onTextChange: (text: string) => void;
 }
 
-export function TextEditor({ text, document, diagnostics, locale, onTextChange }: TextEditorProps): ReactElement {
+export function TextEditor({ text, document, diagnostics, isReadOnly = false, locale, onTextChange }: TextEditorProps): ReactElement {
   const hasErrors = diagnostics.some((diagnostic) => diagnostic.severity === 'error');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [caretPosition, setCaretPosition] = useState(0);
   const [isLegendOpen, setIsLegendOpen] = useState(false);
   const token = useMemo(() => getCurrentDslIdToken(text, caretPosition), [caretPosition, text]);
-  const suggestions = useMemo(() => suggestPeople(document, token?.query ?? ''), [document, token?.query]);
+  const suggestions = useMemo(() => isReadOnly ? [] : suggestPeople(document, token?.query ?? ''), [document, isReadOnly, token?.query]);
 
   function handleSelectionChange(): void {
     setCaretPosition(textareaRef.current?.selectionStart ?? 0);
@@ -77,7 +78,8 @@ export function TextEditor({ text, document, diagnostics, locale, onTextChange }
         <textarea
           ref={textareaRef}
           aria-label="Family tree source"
-          className="tree-textarea"
+          className={isReadOnly ? 'tree-textarea tree-textarea-readonly' : 'tree-textarea'}
+          readOnly={isReadOnly}
           value={text}
           onBlur={handleSelectionChange}
           onChange={(event) => {
