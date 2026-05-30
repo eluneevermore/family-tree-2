@@ -52,7 +52,12 @@ describe('applyFamilyTreeEdit', () => {
     expect(document.families.get('single:d')?.children).toEqual(['c']);
   });
 
-  it('creates deterministic unique ids from names', () => {
-    expect(createUniquePersonId('Alex Smith', new Set(['alexsmith']))).toBe('alexsmith2');
+  it('creates deterministic ids from name initials', () => {
+    expect(createUniquePersonId('John Smith', new Set())).toBe('js');
+    expect(createUniquePersonId('Nguyễn Văn A', new Set())).toBe('nva');
+  });
+
+  it('auto-increments initial ids when the base id already exists', () => {
+    expect(createUniquePersonId('John Smith', new Set(['js', 'js2']))).toBe('js3');
   });
 });

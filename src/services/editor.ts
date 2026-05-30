@@ -1,6 +1,12 @@
 import { FamilyRecord, FamilyTreeEdit, PersonDraft, PersonRecord } from '../types';
 import { createFamilyId, parseFamilyTreeText, serializeFamilyTreeDocument } from './parser';
 
+const GENERATED_PERSON_ID_FALLBACK = 'person';
+const GENERATED_PERSON_ID_SUFFIX_START = 2;
+const COMBINING_MARKS_PATTERN = /[\u0300-\u036f]/gu;
+const PERSON_ID_WORD_SEPARATOR_PATTERN = /[^a-z0-9]+/gu;
+const GENERATED_PERSON_ID_START_PATTERN = /^[a-z]/u;
+
 export function applyFamilyTreeEdit(text: string, edit: FamilyTreeEdit): string {
   const document = parseFamilyTreeText(text);
   const people = new Map(document.people);
@@ -107,12 +113,12 @@ function mergeChildren(firstChildren: readonly string[], secondChildren: readonl
 }
 
 export function createUniquePersonId(name: string, existingIds: ReadonlySet<string>): string {
-  const baseId = slugifyPersonName(name) || 'person';
+  const baseId = createInitialPersonId(name) || GENERATED_PERSON_ID_FALLBACK;
   if (!existingIds.has(baseId)) {
     return baseId;
   }
 
-  let suffix = 2;
+  let suffix = GENERATED_PERSON_ID_SUFFIX_START;
   while (existingIds.has(`${baseId}${suffix}`)) {
     suffix += 1;
   }
@@ -131,11 +137,20 @@ function toPersonRecord(person: PersonDraft): PersonRecord {
   };
 }
 
-function slugifyPersonName(name: string): string {
+function createInitialPersonId(name: string): string {
+  const initials = normalizeNameForPersonId(name)
+    .split(PERSON_ID_WORD_SEPARATOR_PATTERN)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join('');
+
+  return GENERATED_PERSON_ID_START_PATTERN.test(initials) ? initials : '';
+}
+
+function normalizeNameForPersonId(name: string): string {
   return name
     .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-/g, '');
+    .normalize('NFD')
+    .replace(COMBINING_MARKS_PATTERN, '')
+    .toLowerCase();
 }
